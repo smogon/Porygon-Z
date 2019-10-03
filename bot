@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 console.log('Building...');
-require('child_process').execSync('tsc', {stdio: 'inherit', cwd: __dirname});
+require('child_process').execSync('node_modules/.bin/tsc', {stdio: 'inherit', cwd: __dirname});
 console.log('Starting...');
 require('module')._load('./dist/app.js', module, true);
