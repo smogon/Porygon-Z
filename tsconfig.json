@@ -4,7 +4,8 @@
 		"module": "commonjs",
 		"outDir": "dist",
 		"sourceMap": true,
-		"incremental": true
+		"incremental": true,
+		"strict": true
 	},
 	"include": [
 		"src/**/*.ts", "globals.ts"

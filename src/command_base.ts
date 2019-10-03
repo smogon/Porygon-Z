@@ -34,7 +34,8 @@ export abstract class BaseCommand {
 		this.name = name;
 		this.message = message;
 		let parts = message.content.slice(prefix.length).split(' ');
-		this.cmd = parts.shift();
+		// Should never end up being an empty string since message.content will always be at least !commandname
+		this.cmd = parts.shift() || '';
 		this.target = parts.join(' ');
 		this.author = message.author;
 		this.channel = message.channel;
