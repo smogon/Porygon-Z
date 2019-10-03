@@ -1,0 +1,6 @@
+
+root = true
+
+[{tsconfig.json,*.ts}]
+indent_style = tab
+trim_trailing_whitespace = true
