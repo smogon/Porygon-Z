@@ -1,6 +1,15 @@
+# Reference https://editorconfig.org/
 
 root = true
 
-[{tsconfig.json,*.ts}]
+[*]
+charset = utf-8
 indent_style = tab
+indent_size = 4
 trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{json}]
+# Stick with the npm standard style
+indent_style = space
+indent_size = 2
