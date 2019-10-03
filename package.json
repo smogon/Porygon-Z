@@ -1,0 +1,24 @@
+{
+  "name": "porygon-z",
+  "version": "0.0.1",
+  "description": "A discord bot for the official Smogon discord https://discord.gg/smogon",
+  "main": "./dist/app.js",
+  "scripts": {
+    "test": "tsc",
+    "start": "node bot"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smogon/Porygon-Z.git"
+  },
+  "author": "Andrew Werner",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^12.7.8",
+    "discord.js": "^11.5.1",
+    "dotenv": "^8.1.0",
+    "pg": "^7.12.1",
+    "typescript": "^3.6.3"
+  },
+  "devDependencies": {}
+}
