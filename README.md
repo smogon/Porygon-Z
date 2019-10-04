@@ -27,7 +27,7 @@ Where `INTEGER` is a number that represents what permissions the bot has. There 
 Once you have your invite link, follow it and authorize your bot to join the server in question and it should show up in the userlist.
 
 ## Installing and starting the bot itself
-Now that your bot's account has been added to the server(s) you want it in, you need to setup the bot itself. First make sure you have [NodeJS](https://nodejs.org/en/) 10 or later installed. First, clone the bot with git or download and unzip the bot's files. Once you have your files, create a file called `.env` in the root folder of your bot. `.env`'s contents should look like this:
+Now that your bot's account has been added to the server(s) you want it in, you need to setup the bot itself. First make sure you have [NodeJS](https://nodejs.org/en/) 10 or later installed. Next, clone the bot with git or download and unzip the bot's files. Once you have your files, create a file called `.env` in the root folder of your bot. `.env`'s contents should look like this:
 ```
 TOKEN=BOT_TOKEN
 ```

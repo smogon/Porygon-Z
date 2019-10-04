@@ -33,10 +33,9 @@ export abstract class BaseCommand {
 	constructor(name: string, message: Discord.Message) {
 		this.name = name;
 		this.message = message;
-		let parts = message.content.slice(prefix.length).split(' ');
-		// Should never end up being an empty string since message.content will always be at least !commandname
-		this.cmd = parts.shift() || '';
-		this.target = parts.join(' ');
+		let [cmd, ...target] = message.content.slice(prefix.length).split(' ');
+		this.cmd = cmd;
+		this.target = target.join(' ');
 		this.author = message.author;
 		this.channel = message.channel;
 		this.guild = message.guild;
