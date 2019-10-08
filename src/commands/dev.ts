@@ -3,9 +3,10 @@
  * Basic development related commands, may rename later.
  */
 import Discord = require('discord.js');
-import { BaseCommand } from '../command_base';
+import { prefix, ID, toID } from '../app';
+import { BaseCommand, aliasList, DiscordChannel } from '../command_base';
 
-export const aliases: aliases = {
+export const aliases: aliasList = {
 	eval: ['js'],
 };
 

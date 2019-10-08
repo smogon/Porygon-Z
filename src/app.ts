@@ -10,6 +10,8 @@ import fs = require('fs');
 import Discord = require('discord.js');
 import { BaseCommand } from './command_base';
 
+export type ID = '' | string & {__isID: true};
+
 interface Constructable<T> {
 	new(message: Discord.Message): T;
 }

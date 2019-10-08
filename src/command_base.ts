@@ -5,8 +5,9 @@
  * execution in general.
  */
 import Discord = require('discord.js');
-import { prefix } from './app';
-type DiscordChannel = Discord.TextChannel|Discord.DMChannel|Discord.GroupDMChannel;
+import { prefix, ID, toID } from './app';
+export type DiscordChannel = Discord.TextChannel|Discord.DMChannel|Discord.GroupDMChannel;
+export type aliasList = {[key: string]: string[]};
 
 /* To add aliases for a command, add this object to your command file:
 
