@@ -9,11 +9,12 @@
 import fs = require('fs');
 import Discord = require('discord.js');
 import { BaseCommand } from './command_base';
+import { AppServices } from './appServices';
 
 export type ID = '' | string & {__isID: true};
 
 interface Constructable<T> {
-	new(message: Discord.Message): T;
+	new(message: Discord.Message, services: AppServices): T;
 }
 
 interface commandModule {
@@ -25,6 +26,7 @@ interface commandModule {
  * @param {any} text
  */
 export function toID(text: any): ID {
+	if (text && text as BaseCommand) text = text.name;
 	if (text && text.id) text = text.id;
 	if (typeof text !== 'string' && typeof text !== 'number') return '';
 	return ('' + text).toLowerCase().replace(/[^a-z0-9]+/g, '') as ID;
@@ -40,6 +42,7 @@ const client = new Discord.Client();
 export const prefix = '!';
 // Map of Command Classes - Build before use
 export const commands = new Discord.Collection<ID, Constructable<BaseCommand> | ID>();
+export const services = new AppServices();
 
 // Load commands
 const files = fs.readdirSync(`${__dirname}/commands`).filter(f => { return f.endsWith('.js'); });
@@ -79,7 +82,7 @@ client.on('message', msg => {
 
 	// 100% not an alias, so it must be a command class.
 	try {
-		new (command as Constructable<BaseCommand>)(msg).execute();
+		new (command as Constructable<BaseCommand>)(msg, services).execute();
 	} catch (e) {
 		console.error(`A command crashed:`);
 		console.error(e);

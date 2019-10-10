@@ -6,6 +6,7 @@
  */
 import Discord = require('discord.js');
 import { prefix, ID, toID } from './app';
+import { AppServices } from './appServices';
 export type DiscordChannel = Discord.TextChannel|Discord.DMChannel|Discord.GroupDMChannel;
 export type aliasList = {[key: string]: string[]};
 
@@ -22,6 +23,7 @@ and replace aliasid with the ID of the alias you want to add for that command.
 export abstract class BaseCommand {
 	name: string;
 	message: Discord.Message;
+	services: AppServices;
 	cmd: string;
 	target: string;
 	author: Discord.User;
@@ -29,11 +31,12 @@ export abstract class BaseCommand {
 	guild: Discord.Guild;
 
 	/**
-	 * All commands will need to call super('command name', message) to work.
+	 * All commands will need to call super('command name', message, services) to work.
 	 */
-	constructor(name: string, message: Discord.Message) {
+	constructor(name: string, message: Discord.Message, services?: AppServices) {
 		this.name = name;
 		this.message = message;
+		this.services = services || new AppServices();
 		let [cmd, ...target] = message.content.slice(prefix.length).split(' ');
 		this.cmd = cmd;
 		this.target = target.join(' ');
