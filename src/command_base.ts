@@ -7,7 +7,8 @@
 import Discord = require('discord.js');
 import { ID, prefix, toID } from './common';
 
-export type DiscordChannel = Discord.TextChannel | Discord.DMChannel | Discord.GroupDMChannel;
+import { AppServices } from './appServices';
+export type DiscordChannel = Discord.TextChannel|Discord.DMChannel|Discord.GroupDMChannel;
 
 /**
  * To add aliases for a command, add this object to your command file:
@@ -26,6 +27,7 @@ export interface IAliasList {
 export abstract class BaseCommand {
 	protected name: string;
 	protected message: Discord.Message;
+	protected services AppServices;
 	protected cmd: string;
 	protected target: string;
 	protected author: Discord.User;
@@ -33,13 +35,13 @@ export abstract class BaseCommand {
 	protected guild: Discord.Guild;
 
 	/**
-	 * All commands will need to call super('command name', message) to work.
+	 * All commands will need to call super('command name', message, services) to work.
 	 */
-	protected constructor(name: string, message: Discord.Message) {
+	protected constructor(name: string, message: Discord.Message, services?: AppServices) {
 		this.name = name;
 		this.message = message;
-		const [cmd, ...target] = message.content.slice(prefix.length).split(' ');
-		this.cmd = cmd;
+		this.services = services || new AppServices();
+		const [cmd, ...target] = message.content.slice(prefix.length).split(' ');		this.cmd = cmd;
 		this.target = target.join(' ');
 		this.author = message.author;
 		this.channel = message.channel;

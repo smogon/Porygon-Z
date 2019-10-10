@@ -2,7 +2,7 @@
  *              Porygon-Z
  * The Bot for the Official Smogon Discord
  *      https://discord.gg/smogon
- *
+ * 
  * Main File - app.ts
  * This is file you start the bot with.
  */
@@ -11,9 +11,10 @@ import fs = require('fs');
 
 import { prefix, ID, toID } from './common';
 import { BaseCommand } from './command_base';
+import { AppServices } from './appServices';
 
 interface Constructable<T> {
-	new(message: Discord.Message): T;
+	new(message: Discord.Message, services: AppServices): T;
 }
 
 interface ICommandModule {
@@ -23,6 +24,7 @@ interface ICommandModule {
 const client = new Discord.Client();
 // Map of Command Classes - Build before use
 export const commands = new Discord.Collection<ID, Constructable<BaseCommand> | ID>();
+export const services = new AppServices();
 
 // Load commands
 const files = fs.readdirSync(`${__dirname}/commands`).filter(f => f.endsWith('.js'));
@@ -63,7 +65,7 @@ client.on('message', msg => {
 
 	// 100% not an alias, so it must be a command class.
 	try {
-		new (command as Constructable<BaseCommand>)(msg).execute();
+		new (command as Constructable<BaseCommand>)(msg, services).execute();
 	} catch (e) {
 		console.error(`A command crashed:`);
 		console.error(e);
