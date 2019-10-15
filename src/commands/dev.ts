@@ -25,12 +25,12 @@ export class Eval extends BaseCommand {
 		super('eval', message);
 	}
 
-	execute() {
+	async execute() {
 		// TODO proper permissions system
-		if (this.author.id !== "236292964052107264") return this.reply(`\u274C You do not have permission to do that.`);
+		if (!this.can('EVAL')) return this.reply(`\u274C You do not have permission to do that.`);
 		let result: any = '';
 		try {
-			result = eval(this.target);
+			result = await eval(this.target);
 		} catch (e) {
 			result = `An error occured: ${e.toString()}`;
 		}

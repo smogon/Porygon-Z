@@ -42,6 +42,17 @@ export abstract class BaseCommand {
 		this.guild = message.guild;
 	}
 
+	async can(permission: string, user?: Discord.User): Promise<boolean> {
+		if (!user) user = this.author;
+		let permissions = Object.keys(Discord.Permissions.FLAGS);
+		permissions.push('EVAL'); // Custom Permissions for Bot Owners
+		if (!permissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
+		if ((process.env.ADMINS || '').split(',').map(toID).includes(toID(user.id))) return true;
+
+		let member = await this.guild.fetchMember(user);
+		return member.hasPermission((permission as Discord.PermissionResolvable), undefined, true, true);
+	}
+
 	reply(msg: string, channel?: DiscordChannel): void {
 		if (!channel) channel = this.message.channel;
 		channel.send(msg);
