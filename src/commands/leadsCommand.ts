@@ -1,9 +1,13 @@
 import Discord = require('discord.js');
 import { ColorService } from '../pokemon/colorService';
-import { BaseCommand } from '../command_base';
+import { BaseCommand, aliasList } from '../command_base';
 import { SmogonFormat } from '../ps-stats/models';
 import { AppServices } from '../appServices';
 import { Pokemon } from '../pokemon/models';
+
+export const aliases: aliasList = {
+	LeadsCommand: ['stats-leads'],
+};
 
 export class LeadsCommand extends BaseCommand {
 	constructor(message: Discord.Message, services: AppServices) {
@@ -12,8 +16,8 @@ export class LeadsCommand extends BaseCommand {
 	
 	execute() {
 		const format = { generation: "gen7", tier: "ou" } as SmogonFormat;
-		const leads = this.services.statsService.getLeads(format);
-		const firstMon = this.services.dexService.getPokemon(leads[0].name) || {} as Pokemon;
+		const leads = this.services.stats.getLeads(format);
+		const firstMon = this.services.dex.getPokemon(leads[0].name) || {} as Pokemon;
 
 		const embed = new Discord.RichEmbed()
 			.setColor(ColorService.getColorForType(firstMon.types[0]))

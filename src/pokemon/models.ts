@@ -6,41 +6,39 @@ export interface Dex {
 	moveflags: Moveflag[];
 	moves: Move[];
 	types: Type[];
-	items: Ability[];
+	items: Item[];
 }
-  
-interface Type {
+
+interface BaseType {
 	name: string;
-	atk_effectives: (number | string)[][];
-	genfamily: string[];
 	description: string;
+	genfamily: string[];
+}
+
+interface Type extends BaseType {
+	atk_effectives: (number | string)[][];
 }
   
-interface Move {
-	name: string;
+interface Move extends BaseType {
 	cap: boolean;
 	category: string;
 	power: number;
 	accuracy: number;
 	priority: number;
 	pp: number;
-	description: string;
 	type: string;
 	flags: string[];
-	genfamily: string[];
 }
   
-interface Moveflag {
-	name: string;
-	description: string;
-	genfamily: string[];
+interface Moveflag extends BaseType {
 }
   
-interface Ability {
-	name: string;
-	description: string;
+interface Ability extends BaseType {
 	cap: boolean;
-	genfamily: string[];
+}
+
+interface Item extends BaseType {
+	cap: boolean;
 }
   
 interface Nature {
