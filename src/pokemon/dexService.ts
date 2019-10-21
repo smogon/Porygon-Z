@@ -1,5 +1,6 @@
 import fs = require("fs");
 import FuzzyMatching = require('fuzzy-matching');
+import { toID } from "../app";
 import { Pokemon, Dex } from "./models";
 
 export class DexService {
@@ -14,20 +15,20 @@ export class DexService {
 	}
 
 	public getPokemon(name: string): Pokemon | undefined {
-		const pokemon = this.pokemonMap[name.toLowerCase()];
+		const pokemon = this.pokemonMap[toID(name)];
 		if (pokemon)
 			return pokemon;
 
 		const match = this.fuzzyMatching.get(name, undefined);
 		return (match.distance >= 0.5)
-			? this.pokemonMap[match.value.toLowerCase()]
+			? this.pokemonMap[toID(match.value)]
 			: undefined;
 	}
 
 	private loadFileData(): void {
 		this.dex = this.loadFile<Dex>("dex.json");
-		this.dex.pokemon.forEach(i => {
-			this.pokemonMap[i.name.toLowerCase()] = i;
+		this.dex.pokemon.forEach(p => {
+			this.pokemonMap[toID(p.name)] = p;
 		})
 	}
 
