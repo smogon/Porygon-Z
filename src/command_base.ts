@@ -5,8 +5,9 @@
  * execution in general.
  */
 import Discord = require('discord.js');
-import { prefix } from './app';
-type DiscordChannel = Discord.TextChannel|Discord.DMChannel|Discord.GroupDMChannel;
+import { prefix, ID, toID } from './app';
+export type DiscordChannel = Discord.TextChannel|Discord.DMChannel|Discord.GroupDMChannel;
+export type aliasList = {[key: string]: string[]};
 
 /* To add aliases for a command, add this object to your command file:
 
@@ -39,6 +40,17 @@ export abstract class BaseCommand {
 		this.author = message.author;
 		this.channel = message.channel;
 		this.guild = message.guild;
+	}
+
+	async can(permission: string, user?: Discord.User): Promise<boolean> {
+		if (!user) user = this.author;
+		let permissions = Object.keys(Discord.Permissions.FLAGS);
+		permissions.push('EVAL'); // Custom Permissions for Bot Owners
+		if (!permissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
+		if ((process.env.ADMINS || '').split(',').map(toID).includes(toID(user.id))) return true;
+
+		let member = await this.guild.fetchMember(user);
+		return member.hasPermission((permission as Discord.PermissionResolvable), undefined, true, true);
 	}
 
 	reply(msg: string, channel?: DiscordChannel): void {

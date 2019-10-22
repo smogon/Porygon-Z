@@ -10,6 +10,8 @@ import fs = require('fs');
 import Discord = require('discord.js');
 import { BaseCommand } from './command_base';
 
+export type ID = '' | string & {__isID: true};
+
 interface Constructable<T> {
 	new(message: Discord.Message): T;
 }
@@ -29,7 +31,7 @@ export function toID(text: any): ID {
 }
 
 if (!require('dotenv').config().parsed) {
-	console.log('Enviroment variables were not setup, create a .env file and add values for TOKEN.');
+	console.log('Enviroment variables were not setup, create a .env file and add values as described in README.md.');
 	process.exit(1);
 }
 
