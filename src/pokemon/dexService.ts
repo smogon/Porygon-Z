@@ -16,8 +16,9 @@ export class DexService {
 
 	public getPokemon(name: string): Pokemon | undefined {
 		const pokemon = this.pokemonMap[toID(name)];
-		if (pokemon)
+		if (pokemon) {
 			return pokemon;
+		}
 
 		const match = this.fuzzyMatching.get(name, undefined);
 		return (match.distance >= 0.5)
