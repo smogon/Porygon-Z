@@ -8,7 +8,7 @@ To setup your bot, you will need:
  - A [discord account](https://discordapp.com/).
  - A discord server that you have `Manage Server` permissions on. You can also try [creating a discord server](https://support.discordapp.com/hc/en-us/articles/204849977-How-do-I-create-a-server).
  - A [discord application](https://discordapp.com/developers/applications/) for your bot. (Explained further below)
- - [NodeJS](https://nodejs.org/en/) version 10 or later.
+ - [Node.js](https://nodejs.org/en/) version 10 or later.
 
 ## Creating up a discord application and your bot's account
 Head over to the [discord developer portal's application page](https://discordapp.com/developers/applications/) and sign in if you haven't and either create a new application for your bot or select an existing one. The bot's name is not the applications name. You should now be in the general information tab for your application, note that you can see a clientid here. The application's clientid will be necessary for inviting your bot to a server later. Switch to the bot tab and create a bot, do note that you cannot destroy a discord bot once you create it. Now on the bot page, you should be able to name your bot and see its token. Your bot's token is basically its password so keep it safe, we will need it later.
@@ -27,13 +27,13 @@ Where `INTEGER` is a number that represents what permissions the bot has. There 
 Once you have your invite link, follow it and authorize your bot to join the server in question and it should show up in the userlist.
 
 ## Installing and starting the bot itself
-Now that your bot's account has been added to the server(s) you want it in, you need to setup the bot itself. First make sure you have [NodeJS](https://nodejs.org/en/) 10 or later installed. Next, clone the bot with git or download and unzip the bot's files. Once you have your files, create a file called `.env` in the root folder of your bot. `.env`'s contents should look like this:
+Now that your bot's account has been added to the server(s) you want it in, you need to setup the bot itself. First make sure you have [Node.js](https://nodejs.org/en/) 10 or later installed. Next, clone the bot with git or download and unzip the bot's files. Once you have your files, create a file called `.env` in the root folder of your bot. `.env`'s contents should look like this:
 ```
 TOKEN=BOT_TOKEN
 ADMINS=SNOWFLAKE,SNOWFLAKE,...
 PREFIX=!
 ```
-where `BOT_TOKEN` is the token (your bot's "password") found on the bot tab of your application. After that run `npm i --production` to install dependencies (exclude the `--production` flag if you plan to contribute to Porygon-Z so that developer dependencies are installed too). Meanwhile `OWNERS` is a comma serpated list of discord user snowflakes. You can get a user's snowflake by enabling developer mode in your discord account's user settings and then right clicking the user and selecting `Copy ID` from the dropdown. Owners will bypass all permission checks on all servers.
+where `BOT_TOKEN` is the token (your bot's "password") found on the bot tab of your application. After that run `npm install` to install dependencies. Meanwhile `OWNERS` is a comma serpated list of discord user snowflakes. You can get a user's snowflake by enabling developer mode in your discord account's user settings and then right clicking the user and selecting `Copy ID` from the dropdown. Owners will bypass all permission checks on all servers.
 After that running `node bot` should start your bot up.
 
 ## License
