@@ -3,10 +3,10 @@
  * Basic development related commands, may rename later.
  */
 import Discord = require('discord.js');
-import { prefix, ID, toID } from '../common';
-import { BaseCommand, aliasList, DiscordChannel } from '../command_base';
+import { ID, prefix, toID } from '../common';
+import { BaseCommand, DiscordChannel, IAliasList } from '../command_base';
 
-export const aliases: aliasList = {
+export const aliases: IAliasList = {
 	eval: ['js'],
 };
 
@@ -15,7 +15,7 @@ export class Ping extends BaseCommand {
 		super('ping', message);
 	}
 
-	execute() {
+	public execute() {
 		this.reply(`Pong!`);
 	}
 }
@@ -25,11 +25,12 @@ export class Eval extends BaseCommand {
 		super('eval', message);
 	}
 
-	async execute() {
+	public async execute() {
 		// TODO proper permissions system
 		if (!this.can('EVAL')) return this.reply(`\u274C You do not have permission to do that.`);
 		let result: any = '';
 		try {
+			// tslint:disable-next-line: no-eval - only owners can use
 			result = await eval(this.target);
 		} catch (e) {
 			result = `An error occured: ${e.toString()}`;

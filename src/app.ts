@@ -6,8 +6,9 @@
  * Main File - app.ts
  * This is file you start the bot with.
  */
-import fs = require('fs');
 import Discord = require('discord.js');
+import fs = require('fs');
+
 import { prefix, ID, toID } from './common';
 import { BaseCommand } from './command_base';
 
@@ -15,7 +16,7 @@ interface Constructable<T> {
 	new(message: Discord.Message): T;
 }
 
-interface commandModule {
+interface ICommandModule {
 	[key: string]: Constructable<BaseCommand> | string[];
 }
 
@@ -24,20 +25,21 @@ const client = new Discord.Client();
 export const commands = new Discord.Collection<ID, Constructable<BaseCommand> | ID>();
 
 // Load commands
-const files = fs.readdirSync(`${__dirname}/commands`).filter(f => { return f.endsWith('.js'); });
-for (let file of files) {
-	const commandModule: commandModule = require(`${__dirname}/commands/${file}`);
-	for (let cmd in commandModule) {
-		let mod = commandModule[cmd];
+const files = fs.readdirSync(`${__dirname}/commands`).filter(f => f.endsWith('.js'));
+for (const file of files) {
+	// tslint:disable-next-line: no-var-requires
+	const commandModule: ICommandModule = require(`${__dirname}/commands/${file}`);
+	for (const cmd in commandModule) {
+		const mod = commandModule[cmd];
 		if (typeof mod === 'function') {
 			// Its a command (class)
 			commands.set(toID(cmd), mod);
 		} else {
 			// Its an alias object
-			for (let key in mod) {
-				let aliases = mod[key];
-				for (let i = 0; i < aliases.length; i++) {
-					commands.set(toID(aliases[i]), toID(key));
+			for (const key in mod) {
+				const aliases = mod[key];
+				for (const alias of aliases) {
+					commands.set(toID(alias), toID(key));
 				}
 			}
 		}
