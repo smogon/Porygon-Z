@@ -5,7 +5,7 @@
   "main": "./dist/app.js",
   "scripts": {
     "test": "tsc",
-    "start": "node bot"
+    "start": "node -r dotenv/config bot"
   },
   "repository": {
     "type": "git",
