@@ -1,0 +1,21 @@
+{
+    "defaultSeverity": "error",
+    "extends": [
+        "tslint:latest"
+    ],
+    "rules": {
+        "indent": [true, "tabs", 4],
+		"max-classes-per-file": false,
+		"quotemark": [true, "single"],
+		"no-console": false,
+		"arrow-parens": false,
+		"forin": false,
+		"curly": false,
+		"prefer-const": {
+			"options": {
+				"destructuring": "all"
+			}
+		},
+		"no-redundant-jsdoc": true
+    }
+}
