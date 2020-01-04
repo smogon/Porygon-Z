@@ -2,7 +2,7 @@
  *              Porygon-Z
  * The Bot for the Official Smogon Discord
  *      https://discord.gg/smogon
- * 
+ *
  * Main File - app.ts
  * This is file you start the bot with.
  */
@@ -28,11 +28,6 @@ export function toID(text: any): ID {
 	if (text && text.id) text = text.id;
 	if (typeof text !== 'string' && typeof text !== 'number') return '';
 	return ('' + text).toLowerCase().replace(/[^a-z0-9]+/g, '') as ID;
-}
-
-if (!require('dotenv').config().parsed) {
-	console.log('Enviroment variables were not setup, create a .env file and add values as described in README.md.');
-	process.exit(1);
 }
 
 const client = new Discord.Client();
