@@ -5,7 +5,7 @@
  * execution in general.
  */
 import Discord = require('discord.js');
-import { prefix, ID, toID } from './app';
+import { prefix, ID, toID } from './common';
 export type DiscordChannel = Discord.TextChannel|Discord.DMChannel|Discord.GroupDMChannel;
 export type aliasList = {[key: string]: string[]};
 

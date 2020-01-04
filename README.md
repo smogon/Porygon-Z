@@ -31,6 +31,7 @@ Now that your bot's account has been added to the server(s) you want it in, you 
 ```
 TOKEN=BOT_TOKEN
 ADMINS=SNOWFLAKE,SNOWFLAKE,...
+PREFIX=!
 ```
 where `BOT_TOKEN` is the token (your bot's "password") found on the bot tab of your application. After that run `npm i --production` to install dependencies (exclude the `--production` flag if you plan to contribute to Porygon-Z so that developer dependencies are installed too). Meanwhile `OWNERS` is a comma serpated list of discord user snowflakes. You can get a user's snowflake by enabling developer mode in your discord account's user settings and then right clicking the user and selecting `Copy ID` from the dropdown. Owners will bypass all permission checks on all servers.
 After that running `node bot` should start your bot up.

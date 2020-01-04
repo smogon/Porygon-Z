@@ -8,9 +8,8 @@
  */
 import fs = require('fs');
 import Discord = require('discord.js');
+import { prefix, ID, toID } from './common';
 import { BaseCommand } from './command_base';
-
-export type ID = '' | string & {__isID: true};
 
 interface Constructable<T> {
 	new(message: Discord.Message): T;
@@ -20,19 +19,7 @@ interface commandModule {
 	[key: string]: Constructable<BaseCommand> | string[];
 }
 
-/**
- * toID - Turns anything into an ID (string with only lowercase alphanumeric characters)
- * @param {any} text
- */
-export function toID(text: any): ID {
-	if (text && text.id) text = text.id;
-	if (typeof text !== 'string' && typeof text !== 'number') return '';
-	return ('' + text).toLowerCase().replace(/[^a-z0-9]+/g, '') as ID;
-}
-
 const client = new Discord.Client();
-// The prefix to all bot commands
-export const prefix = '!';
 // Map of Command Classes - Build before use
 export const commands = new Discord.Collection<ID, Constructable<BaseCommand> | ID>();
 
