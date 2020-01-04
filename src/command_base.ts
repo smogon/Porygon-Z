@@ -9,19 +9,19 @@ import { ID, prefix, toID } from './common';
 
 export type DiscordChannel = Discord.TextChannel | Discord.DMChannel | Discord.GroupDMChannel;
 
+/**
+ * To add aliases for a command, add this object to your command file:
+
+ * `export const aliases: aliases = {
+ *	commandid: ['aliasid', 'aliasid', ...],
+ * 	};`
+ *
+ * Replace commandid with the ID of the existing command you want to add aliases for,
+ * and replace aliasid with the ID of the alias you want to add for that command.
+*/
 export interface IAliasList {
 	[key: string]: string[];
 }
-
-/* To add aliases for a command, add this object to your command file:
-
-export const aliases: aliases = {
-	commandid: ['aliasid', 'aliasid', ...],
-};
-
-Replace commandid with the ID of the existing command you want to add aliases for,
-and replace aliasid with the ID of the alias you want to add for that command.
-*/
 
 export abstract class BaseCommand {
 	protected name: string;
