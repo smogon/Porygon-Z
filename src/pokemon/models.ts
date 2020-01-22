@@ -72,15 +72,6 @@ export interface Pokemon {
 	types: PokemonType[];
 	abilities: string[];
 	formats: string[];
-	oob?: Oob;
-}
-  
-interface Oob {
-	dex_number: number;
-	cap: boolean;
-	evos: string[];
-	alts: string[];
-	genfamily: string[];
 }
   
 export enum PokemonType {

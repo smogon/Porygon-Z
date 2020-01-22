@@ -27,7 +27,7 @@ export interface IAliasList {
 export abstract class BaseCommand {
 	protected name: string;
 	protected message: Discord.Message;
-	protected services AppServices;
+	protected services: AppServices;
 	protected cmd: string;
 	protected target: string;
 	protected author: Discord.User;

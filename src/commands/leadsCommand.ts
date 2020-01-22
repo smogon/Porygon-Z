@@ -1,11 +1,11 @@
 import Discord = require('discord.js');
 import { ColorService } from '../pokemon/colorService';
-import { BaseCommand, aliasList } from '../command_base';
+import { BaseCommand, IAliasList } from '../command_base';
 import { SmogonFormat } from '../ps-stats/models';
 import { AppServices } from '../appServices';
 import { Pokemon } from '../pokemon/models';
 
-export const aliases: aliasList = {
+export const aliases: IAliasList = {
 	LeadsCommand: ['stats-leads'],
 };
 
@@ -13,7 +13,7 @@ export class LeadsCommand extends BaseCommand {
 	constructor(message: Discord.Message, services: AppServices) {
 		super('stats-leads', message, services);
 	}
-	
+
 	execute() {
 		const format = { generation: "gen7", tier: "ou" } as SmogonFormat;
 		const leads = this.services.stats.getLeads(format);

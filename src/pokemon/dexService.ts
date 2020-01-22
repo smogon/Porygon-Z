@@ -1,6 +1,6 @@
 import fs = require("fs");
 import FuzzyMatching = require('fuzzy-matching');
-import { toID } from "../app";
+import { toID } from "../common";
 import { Pokemon, Dex } from "./models";
 
 export class DexService {
@@ -30,12 +30,12 @@ export class DexService {
 		this.dex = this.loadFile<Dex>("dex.json");
 		this.dex.pokemon.forEach(p => {
 			this.pokemonMap[toID(p.name)] = p;
-		})
+		});
 	}
 
 	private loadFile<T>(filename: string): T {
 		const rawdata = fs.readFileSync(`data/${filename}`).toString();
-		const data:T = JSON.parse(rawdata);
+		const data: T = JSON.parse(rawdata);
 		return data;
 	}
 }
