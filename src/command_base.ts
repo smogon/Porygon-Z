@@ -51,14 +51,22 @@ export abstract class BaseCommand {
 	 */
 	public abstract execute(): void;
 
-	protected async can(permission: string, user?: Discord.User): Promise<boolean> {
+	/**
+	 * Checks if the user has permission to perform an action based on their discord permission flags.
+	 *
+	 * @param One of the the discord permission flags or supported custom flags. https://discord.js.org/#/docs/main/stable/class/Permissions?scrollTo=s-FLAGS 
+	 * @param user Optional. The user to perform the permission check on. Defaults to the user using the command.
+	 * @param guild Optional. The guild (server) to check the user's permissions in. Defaults to the guild the command was used in.
+	 */
+	protected async can(permission: string, user?: Discord.User, guild?: Discord.Guild): Promise<boolean> {
 		if (!user) user = this.author;
+		if (!guild) guild = this.guild;
 		const permissions = Object.keys(Discord.Permissions.FLAGS);
 		permissions.push('EVAL'); // Custom Permissions for Bot Owners
 		if (!permissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
 		if ((process.env.ADMINS || '').split(',').map(toID).includes(toID(user.id))) return true;
 
-		const member = await this.guild.fetchMember(user);
+		const member = await guild.fetchMember(user);
 		return member.hasPermission((permission as Discord.PermissionResolvable), undefined, true, true);
 	}
 
@@ -67,7 +75,7 @@ export abstract class BaseCommand {
 		channel.send(msg);
 	}
 
-	protected sendCode(msg: string, channel?: DiscordChannel, language?: string): void {
+	protected sendCode(msg: string, language?: string, channel?: DiscordChannel): void {
 		if (!channel) channel = this.message.channel;
 		channel.send(`\`\`\`${language || ''}\n${msg}\n\`\`\``);
 	}
