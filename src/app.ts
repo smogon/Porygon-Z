@@ -9,7 +9,7 @@
 import Discord = require('discord.js');
 import fs = require('fs');
 
-import { prefix, ID, toID } from './common';
+import { prefix, ID, toID, pgPool } from './common';
 import { BaseCommand } from './command_base';
 
 interface Constructable<T> {
@@ -19,6 +19,9 @@ interface Constructable<T> {
 interface ICommandModule {
 	[key: string]: Constructable<BaseCommand> | string[];
 }
+
+// Ensure database properly setup
+require('./create-tables');
 
 const client = new Discord.Client();
 // Map of Command Classes - Build before use

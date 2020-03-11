@@ -4,7 +4,7 @@
   "description": "A discord bot for the official Smogon discord https://discord.gg/smogon",
   "main": "./dist/app.js",
   "scripts": {
-    "pretest": "tslint",
+    "pretest": "tslint *.ts",
     "test": "tsc",
     "start": "node -r dotenv/config bot"
   },
@@ -16,6 +16,7 @@
   "license": "MIT",
   "dependencies": {
     "@types/node": "^12.7.8",
+    "@types/pg": "^7.14.1",
     "discord.js": "^11.5.1",
     "dotenv": "^8.1.0",
     "pg": "^7.12.1",

@@ -62,11 +62,23 @@ export abstract class BaseCommand {
 		if (!user) user = this.author;
 		if (!guild) guild = this.guild;
 		const permissions = Object.keys(Discord.Permissions.FLAGS);
-		permissions.push('EVAL'); // Custom Permissions for Bot Owners
-		if (!permissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
+		const customPermissions = ['EVAL']; // Custom Permissions for Bot Owners
+		if (!permissions.includes(permission) && !customPermissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
+		// Bot admins bypass all
 		if ((process.env.ADMINS || '').split(',').map(toID).includes(toID(user.id))) return true;
 
+		// Handle custom permissions
 		const member = await guild.fetchMember(user);
+
+		switch (permission) {
+		case 'EVAL':
+			// Handled above, if we reach here you do not have permission
+			return false;
+			// Add more later, default case not needed
+		}
+
+		// All custom permissions need to resolve above.
+		if (!permissions.includes(permission)) throw new Error(`Unhandled custom permission: ${permission}.`);
 		return member.hasPermission((permission as Discord.PermissionResolvable), undefined, true, true);
 	}
 

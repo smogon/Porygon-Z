@@ -32,9 +32,23 @@ Now that your bot's account has been added to the server(s) you want it in, you 
 TOKEN=BOT_TOKEN
 ADMINS=SNOWFLAKE,SNOWFLAKE,...
 PREFIX=!
+PGHOST=localhost
+PGPORT=5432
+PGUSER=porygonz
+PGPASSWORD=null
+PGDATABASE=porygonz
 ```
-where `BOT_TOKEN` is the token (your bot's "password") found on the bot tab of your application. After that run `npm i --production` to install dependencies (exclude the `--production` flag if you plan to contribute to Porygon-Z so that developer dependencies are installed too). Meanwhile `OWNERS` is a comma serpated list of discord user snowflakes. You can get a user's snowflake by enabling developer mode in your discord account's user settings and then right clicking the user and selecting `Copy ID` from the dropdown. Owners will bypass all permission checks on all servers.
-After that running `node bot` should start your bot up.
+- `BOT_TOKEN` is the token (your bot's "password") found on the bot tab of your application. 
+- `OWNERS` is a comma serpated list of discord user snowflakes. You can get a user's snowflake by enabling developer mode in your discord account's user settings and then right clicking the user and selecting `Copy ID` from the dropdown. Owners will bypass all permission checks on all servers.
+- `PREFIX` is the bot's command prefix.
+- `PGHOST` is the postgresSQL server location.
+- `PGPORT` is the port for the postgresSQL server.
+- `PGUSER` is the postgresSQL server user account the bot will login to.
+- `PGPASSWORD` is the password for the postgresSQL user account the bot is attempting to login to or `null` for no password.
+- `PGDATABASE` is the postgresSQL database the bot will attempt to access.
+
+After setting up your .env file run `npm i --production` to install dependencies (exclude the `--production` flag if you plan to contribute to Porygon-Z so that developer dependencies are installed too).
+After that running `npm start` should start your bot up.
 
 ## License
 [MIT](https://github.com/smogon/Porygon-Z/blob/master/LICENSE)
