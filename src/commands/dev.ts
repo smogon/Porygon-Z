@@ -5,7 +5,6 @@
 import Discord = require('discord.js');
 import { ID, prefix, toID, pgPool } from '../common';
 import { BaseCommand, DiscordChannel, IAliasList } from '../command_base';
-import { QueryResult } from 'pg';
 
 export const aliases: IAliasList = {
 	eval: ['js'],
@@ -13,21 +12,21 @@ export const aliases: IAliasList = {
 
 export class Ping extends BaseCommand {
 	constructor(message: Discord.Message) {
-		super('ping', message);
+		super(message);
 	}
 
-	public execute() {
+	public async execute() {
 		this.reply(`Pong!`);
 	}
 }
 
 export class Eval extends BaseCommand {
 	constructor(message: Discord.Message) {
-		super('eval', message);
+		super(message);
 	}
 
 	public async execute() {
-		if (!(await this.can('EVAL'))) return this.reply(`\u274C You do not have permission to do that.`);
+		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
 		let result: any = '';
 		try {
 			// tslint:disable-next-line: no-eval - only owners can use
@@ -41,11 +40,11 @@ export class Eval extends BaseCommand {
 
 export class Query extends BaseCommand {
 	constructor(message: Discord.Message) {
-		super('query', message);
+		super(message);
 	}
 
 	public async execute() {
-		if (!(await this.can('EVAL'))) return this.reply(`\u274C You do not have permission to do that.`);
+		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
 		pgPool.query(this.target, (err, res) => {
 			if (err) {
 				this.sendCode(`An error occured: ${err.toString()}`);
@@ -71,6 +70,7 @@ export class Query extends BaseCommand {
 			table += '\n';
 		}
 
+		if (table === '\n') table = 'No rows returned';
 		return table;
 	}
 }
