@@ -9,7 +9,7 @@ import { ID, prefix, toID, pgPool } from './common';
 import { PoolClient } from 'pg';
 import { client } from './app';
 
-export type DiscordChannel = Discord.TextChannel | Discord.DMChannel | Discord.GroupDMChannel;
+export type DiscordChannel = Discord.TextChannel | Discord.DMChannel | Discord.NewsChannel;
 
 /**
  * To add aliases for a command, add this object to your command file:
@@ -31,9 +31,10 @@ export abstract class BaseCommand {
 	protected target: string;
 	protected author: Discord.User;
 	protected channel: DiscordChannel;
-	protected guild: Discord.Guild;
+	protected guild: Discord.Guild | null;
 	protected worker: PoolClient | null;
 	protected isMonitor: boolean;
+	protected allowPMs: boolean;
 
 	/**
 	 * All commands will need to call super(message) to work.
@@ -48,12 +49,20 @@ export abstract class BaseCommand {
 		this.guild = message.guild;
 		this.worker = null;
 		this.isMonitor = false;
+		this.allowPMs = false;
 	}
 
 	/**
 	 * Execute is the method called first when running a command.
 	 */
 	public abstract async execute(): Promise<void>;
+
+	/**
+	 * Can this command be used in PMs?
+	 */
+	public checkPmAllowed(): boolean {
+		return this.allowPMs;
+	}
 
 	/**
 	 * Checks if the user has permission to perform an action based on their discord permission flags.
@@ -63,16 +72,20 @@ export abstract class BaseCommand {
 	 * @param guild Optional. The guild (server) to check the user's permissions in. Defaults to the guild the command was used in.
 	 */
 	protected async can(permission: string, user?: Discord.User, guild?: Discord.Guild): Promise<boolean> {
-		if (!user) user = this.author;
-		if (!guild) guild = this.guild;
 		const permissions = Object.keys(Discord.Permissions.FLAGS);
 		const customPermissions = ['EVAL']; // Custom Permissions for Bot Owners
 		if (!permissions.includes(permission) && !customPermissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
+
+		if (!user) user = this.author;
 		// Bot admins bypass all
 		if ((process.env.ADMINS || '').split(',').map(toID).includes(toID(user.id))) return true;
+		if (!guild) {
+			if (!this.guild) return false; // Private Messages only support the EVAL permission check
+			guild = this.guild;
+		}
 
 		// Handle custom permissions
-		const member = await guild.fetchMember(user);
+		const member = await guild.members.fetch(user);
 
 		switch (permission) {
 		case 'EVAL':
@@ -83,7 +96,7 @@ export abstract class BaseCommand {
 
 		// All custom permissions need to resolve above.
 		if (!permissions.includes(permission)) throw new Error(`Unhandled custom permission: ${permission}.`);
-		return member.hasPermission((permission as Discord.PermissionResolvable), undefined, true, true);
+		return member.hasPermission((permission as Discord.PermissionResolvable), {checkAdmin: true, checkOwner: true});
 	}
 
 	/**
@@ -92,7 +105,7 @@ export abstract class BaseCommand {
 	 * @param disriminator Discord discriminator (four numbers after the #)
 	 */
 	protected findUser(name: string, disriminator: string): Discord.User | undefined {
-		let result = client.users.find(u => {
+		let result = client.users.cache.find(u => {
 			return u.username === name && u.discriminator === disriminator;
 		});
 		if (result) return result;
@@ -103,7 +116,7 @@ export abstract class BaseCommand {
 	 * @param id Discord userid
 	 */
 	protected getUser(id: string): Discord.User | undefined {
-		return client.users.get(id);
+		return client.users.cache.get(id);
 	}
 
 	/**
@@ -111,9 +124,9 @@ export abstract class BaseCommand {
 	 * @param id Discord channelid
 	 */
 	protected getChannel(id: string): DiscordChannel | undefined {
-		let channel = client.channels.get(id);
+		let channel = client.channels.cache.get(id);
 		if (!channel) return;
-		if (['text', 'dm', 'group'].includes(channel.type)) return (channel as DiscordChannel);
+		if (['text', 'dm', 'news'].includes(channel.type)) return (channel as DiscordChannel);
 	}
 
 	/**
@@ -126,7 +139,8 @@ export abstract class BaseCommand {
 		let userid = user.id; // To appease typescript in the upcoming map
 
 		// can only insert if user is in the guild the command was used in
-		let inGuild = !!this.guild.members.find(m => m.user.id === userid);
+		if (!this.guild) return false;
+		let inGuild = !!this.guild.members.cache.find(m => m.user.id === userid);
 		if (!inGuild) return false;
 
 		let worker = await pgPool.connect();
@@ -160,7 +174,8 @@ export abstract class BaseCommand {
 		let channelid = channel.id; // To appease typescript in the upcoming map statement
 
 		// can only insert if channel is in the same guild as the command
-		let inGuild = this.guild.channels.find(c => c.id === channelid);
+		if (!this.guild) return false;
+		let inGuild = this.guild.channels.cache.find(c => c.id === channelid);
 		if (!inGuild) return false;
 
 		let worker = await pgPool.connect();

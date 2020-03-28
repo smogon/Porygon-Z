@@ -13,6 +13,7 @@ export const aliases: IAliasList = {
 export class Ping extends BaseCommand {
 	constructor(message: Discord.Message) {
 		super(message);
+		this.allowPMs = true;
 	}
 
 	public async execute() {
@@ -23,6 +24,7 @@ export class Ping extends BaseCommand {
 export class Eval extends BaseCommand {
 	constructor(message: Discord.Message) {
 		super(message);
+		this.allowPMs = true;
 	}
 
 	public async execute() {
@@ -41,6 +43,7 @@ export class Eval extends BaseCommand {
 export class Query extends BaseCommand {
 	constructor(message: Discord.Message) {
 		super(message);
+		this.allowPMs = true;
 	}
 
 	public async execute() {

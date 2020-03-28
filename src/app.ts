@@ -66,6 +66,7 @@ for (const file of monitorFiles) {
 }
 
 client.on('ready', () => {
+	if (!client || !client.user) throw new Error(`Bot not logged in and ready event triggered.`); // Should never happen
 	console.log(`Logged in as ${client.user.tag}.`);
 });
 
@@ -100,6 +101,7 @@ client.on('message', async msg => {
 	// 100% not an alias, so it must be a command class.
 	const cmd = new (command as Constructable<BaseCommand>)(msg);
 	try {
+		if (!cmd.checkPmAllowed() && !msg.guild) return msg.reply(`This command cannot be used in private messages.`);
 		await cmd.execute();
 	} catch (e) {
 		// TODO improved crashlogger

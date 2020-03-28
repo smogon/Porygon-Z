@@ -20,18 +20,17 @@ abstract class RmtCommand extends BaseCommand {
 	 * @param rawChannel The channelid to look for.
 	 */
 	protected checkChannel(rawChannel: string): Discord.TextChannel | void {
+		if (!this.guild) return this.errorReply(`This command cannot be used in a DM or Group Chat.`);
 		// Check if channel exists
 		let channelid = '';
 		let channel: Discord.TextChannel;
 		if (!toID(rawChannel)) {
-			if (this.channel.type !== 'text') return this.errorReply(`This command cannot be used in a DM or Group Chat.`);
 			channelid = this.channel.id;
 			channel = (this.channel as Discord.TextChannel);
 		} else if (/<#\d{18}>/.test(rawChannel)) {
 			rawChannel = rawChannel.trim();
 			channelid = rawChannel.substring(2, rawChannel.length - 1);
 			let tempChannel = this.getChannel(channelid);
-			if (!tempChannel || tempChannel.type !== 'text') return this.errorReply(`This command cannot be used in a DM or Group Chat.`);
 			channel = (tempChannel as Discord.TextChannel);
 		} else {
 			return this.errorReply(`Command usage: ${prefix}${this.cmd} @User OR User#tag, format, (#channel). #channel defaults to the current one if not provided.`);

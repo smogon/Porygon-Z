@@ -17,7 +17,8 @@
   "dependencies": {
     "@types/node": "^12.7.8",
     "@types/pg": "^7.14.1",
-    "discord.js": "^11.5.1",
+    "@types/ws": "^7.2.3",
+    "discord.js": "^12.1.1",
     "dotenv": "^8.1.0",
     "pg": "^7.12.1",
     "typescript": "^3.6.3"
