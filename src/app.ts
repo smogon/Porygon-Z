@@ -27,6 +27,48 @@ interface IMonitorModule {
 // Ensure database properly setup
 require('./create-tables');
 
+// Database cache sets
+const users = new Set<string>();
+const servers =  new Set<string>();
+const channels = new Set<string>();
+
+async function verifyData(message: Discord.Message) {
+	let worker = null;
+
+	// Server
+	if (message.guild && !servers.has(message.guild.id)) {
+		if (!worker) worker = await pgPool.connect();
+		let res = await worker.query('SELECT * FROM servers WHERE serverid = $1', [message.guild.id]);
+		if (!res.rows.length) {
+			await worker.query('INSERT INTO servers (serverid, servername) VALUES ($1, $2)', [message.guild.id, message.guild.name]);
+		}
+		servers.add(message.guild.id);
+	}
+
+	// Channel
+	if (message.guild && message.channel && ['text', 'news'].includes(message.channel.type) && !channels.has(message.channel.id)) {
+		let channel = (message.channel as Discord.TextChannel | Discord.NewsChannel);
+		if (!worker) worker = await pgPool.connect();
+		let res = await worker.query('SELECT * FROM channels WHERE channelid = $1', [channel.id]);
+		if (!res.rows.length) {
+			await worker.query('INSERT INTO channels (channelid, channelname, serverid) VALUES ($1, $2, $3)', [channel.id, channel.name, message.guild.id]);
+		}
+		channels.add(message.channel.id);
+	}
+
+	// User
+	if (!users.has(message.author.id)) {
+		if (!worker) worker = await pgPool.connect();
+		let res = await worker.query('SELECT * FROM users WHERE userid = $1', [message.author.id]);
+		if (!res.rows.length) {
+			await worker.query('INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)', [message.author.id, message.author.username, message.author.discriminator]);
+		}
+		users.add(message.author.id);
+	}
+
+	if (worker) worker.release();
+}
+
 export const client = new Discord.Client();
 // Map of Command Classes - Build before use
 export const commands = new Discord.Collection<ID, Constructable<BaseCommand> | ID>();
@@ -72,9 +114,11 @@ client.on('ready', () => {
 
 // Fires when we get a new message from discord. We ignore messages that aren't commands or are from a bot.
 client.on('message', async msg => {
+	verifyData(msg);
 	if (msg.author.bot) return;
 	if (!msg.content.startsWith(prefix)) {
 		// Handle Chat Monitors
+		if (!msg.guild) return; // Ignore PMs
 		for (let [k, v] of monitors) {
 			const monitor = new (v as Constructable<BaseMonitor>)(msg);
 			try {
@@ -91,6 +135,9 @@ client.on('message', async msg => {
 		return;
 	}
 	// Attempt to run the request command if it exists.
+	// Skip if this is a PM.
+	if (!msg.guild) return msg.reply(`Commands cannot be used in private messages.`);
+
 	const cmdID = toID(msg.content.slice(prefix.length).split(' ')[0]);
 	let command = commands.get(cmdID);
 	if (typeof command === 'string') command = commands.get(command);
@@ -101,7 +148,6 @@ client.on('message', async msg => {
 	// 100% not an alias, so it must be a command class.
 	const cmd = new (command as Constructable<BaseCommand>)(msg);
 	try {
-		if (!cmd.checkPmAllowed() && !msg.guild) return msg.reply(`This command cannot be used in private messages.`);
 		await cmd.execute();
 	} catch (e) {
 		// TODO improved crashlogger
@@ -111,14 +157,6 @@ client.on('message', async msg => {
 	}
 	// Release any workers regardless of the result
 	cmd.releaseWorker();
-});
-
-client.on("guildCreate", async guild => {
-	// Joined a guild, update the database if needed
-	let res = await pgPool.query('SELECT serverid FROM servers WHERE serverid = $1', [guild.id]);
-	if (!res.rows.length) {
-		await pgPool.query('INSERT INTO servers (serverid, servername) VALUES ($1, $2)', [guild.id, guild.name]);
-	}
 });
 
 // Setup crash handlers

@@ -9,7 +9,7 @@ import { ID, prefix, toID, pgPool } from './common';
 import { PoolClient } from 'pg';
 import { client } from './app';
 
-export type DiscordChannel = Discord.TextChannel | Discord.DMChannel | Discord.NewsChannel;
+export type DiscordChannel = Discord.TextChannel | Discord.NewsChannel;
 
 /**
  * To add aliases for a command, add this object to your command file:
@@ -31,10 +31,9 @@ export abstract class BaseCommand {
 	protected target: string;
 	protected author: Discord.User;
 	protected channel: DiscordChannel;
-	protected guild: Discord.Guild | null;
+	protected guild: Discord.Guild;
 	protected worker: PoolClient | null;
 	protected isMonitor: boolean;
-	protected allowPMs: boolean;
 
 	/**
 	 * All commands will need to call super(message) to work.
@@ -45,11 +44,10 @@ export abstract class BaseCommand {
 		this.cmd = cmd;
 		this.target = target.join(' ');
 		this.author = message.author;
-		this.channel = message.channel;
-		this.guild = message.guild;
+		this.channel = (message.channel as DiscordChannel);
+		this.guild = (message.guild as Discord.Guild);
 		this.worker = null;
 		this.isMonitor = false;
-		this.allowPMs = false;
 	}
 
 	/**
@@ -58,31 +56,20 @@ export abstract class BaseCommand {
 	public abstract async execute(): Promise<void>;
 
 	/**
-	 * Can this command be used in PMs?
-	 */
-	public checkPmAllowed(): boolean {
-		return this.allowPMs;
-	}
-
-	/**
 	 * Checks if the user has permission to perform an action based on their discord permission flags.
 	 *
-	 * @param One of the the discord permission flags or supported custom flags. https://discord.js.org/#/docs/main/stable/class/Permissions?scrollTo=s-FLAGS 
-	 * @param user Optional. The user to perform the permission check on. Defaults to the user using the command.
+	 * @param permission One of the the discord permission flags or supported custom flags. https://discord.js.org/#/docs/main/stable/class/Permissions?scrollTo=s-FLAGS
+	 * @param user Optional. The user to perform the permission check for. Defaults to the user using the command.
 	 * @param guild Optional. The guild (server) to check the user's permissions in. Defaults to the guild the command was used in.
 	 */
 	protected async can(permission: string, user?: Discord.User, guild?: Discord.Guild): Promise<boolean> {
+		if (!user) user = this.author;
+		if (!guild) guild = this.guild;
 		const permissions = Object.keys(Discord.Permissions.FLAGS);
 		const customPermissions = ['EVAL']; // Custom Permissions for Bot Owners
 		if (!permissions.includes(permission) && !customPermissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
-
-		if (!user) user = this.author;
 		// Bot admins bypass all
 		if ((process.env.ADMINS || '').split(',').map(toID).includes(toID(user.id))) return true;
-		if (!guild) {
-			if (!this.guild) return false; // Private Messages only support the EVAL permission check
-			guild = this.guild;
-		}
 
 		// Handle custom permissions
 		const member = await guild.members.fetch(user);
@@ -100,102 +87,72 @@ export abstract class BaseCommand {
 	}
 
 	/**
+	 * Parse a string into a channel
+	 * @param rawChannel - A channelid, or channel mention
+	 * @param inServer - If the channel must be the in server the command was used in.
+	 * TODO how do we handle channels in database that the bot cant access via discord?
+	 */
+	protected getChannel(rawChannel: string, inServer: boolean = false): DiscordChannel | void {
+		if (!toID(rawChannel)) return; // No information
+
+		let channelid = '';
+		if (/<#\d{18}>/.test(rawChannel)) {
+			rawChannel = rawChannel.trim();
+			channelid = rawChannel.substring(2, rawChannel.length - 1);
+		} else {
+			channelid = rawChannel;
+		}
+
+		let channel = (client.channels.cache.get(channelid) as DiscordChannel); // Validation for this type occurs below
+		if (!channel) return;
+		if (!['text', 'news'].includes(channel.type)) return;
+		if (inServer && channel.guild && channel.guild.id !== this.guild.id) return;
+		return (channel as DiscordChannel);
+	}
+
+	/**
+	 * Parse a string into a user
+	 * @param rawUser - A userid, mention, or username#disriminator combination.
+	 */
+	protected getUser(rawUser: string): Discord.User | void {
+		if (!toID(rawUser)) return; // No information.
+		rawUser = rawUser.trim();
+		let userid: string | undefined;
+
+		if (/<@!?\d{18}>/.test(rawUser)) {
+			// Mention
+			let startingIndex = rawUser.includes('!') ? 3 : 2;
+			userid = rawUser.substring(startingIndex, rawUser.length - 1);
+		} else if (/[^@#:]{1,32}#\d{4}/.test(rawUser)) {
+			// try to extract from a username + discriminator (eg: Name#1111)
+			userid = this.findUser(rawUser.split('#')[0], rawUser.split('#')[1]);
+		}
+		if (!userid) {
+			userid = rawUser;
+		}
+
+		return client.users.cache.get(userid);
+	}
+
+	/**
 	 * Find a user by their name and discriminator.
 	 * @param name Discord username (before the #)
 	 * @param disriminator Discord discriminator (four numbers after the #)
 	 */
-	protected findUser(name: string, disriminator: string): Discord.User | undefined {
+	private findUser(name: string, disriminator: string): string | undefined {
 		let result = client.users.cache.find(u => {
 			return u.username === name && u.discriminator === disriminator;
 		});
-		if (result) return result;
+		if (result) return result.id;
 	}
 
 	/**
-	 * Get a user the bot can find
-	 * @param id Discord userid
+	 * Get a server the bot can access
+	 * Mostly serves as a wrapper for commands that cannot access the discord client
+	 * @param id Discord guildid aka serverid
 	 */
-	protected getUser(id: string): Discord.User | undefined {
-		return client.users.cache.get(id);
-	}
-
-	/**
-	 * Get a channel the bot can access
-	 * @param id Discord channelid
-	 */
-	protected getChannel(id: string): DiscordChannel | undefined {
-		let channel = client.channels.cache.get(id);
-		if (!channel) return;
-		if (['text', 'dm', 'news'].includes(channel.type)) return (channel as DiscordChannel);
-	}
-
-	/**
-	 * Inserts a user into the postgres database
-	 * @param id Discord userid
-	 */
-	protected async insertUser(id: string): Promise<boolean> {
-		let user = this.getUser(id);
-		if (!user) return false;
-		let userid = user.id; // To appease typescript in the upcoming map
-
-		// can only insert if user is in the guild the command was used in
-		if (!this.guild) return false;
-		let inGuild = !!this.guild.members.cache.find(m => m.user.id === userid);
-		if (!inGuild) return false;
-
-		let worker = await pgPool.connect();
-		try {
-			await worker.query('BEGIN');
-
-			let res = await worker.query('SELECT userid FROM users WHERE userid = $1', [id]);
-			if (!res.rows.length) {
-				await worker.query('INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)', [id, user.username, user.discriminator]);
-			}
-
-			res = await worker.query('SELECT userid FROM userlist WHERE serverid = $1 AND userid = $2', [this.guild.id, user.id]);
-			if (!res.rows.length) {
-				await worker.query('INSERT INTO userlist (serverid, userid) VALUES ($1, $2)', [this.guild.id, user.id]);
-			}
-
-			await worker.query('COMMIT');
-			worker.release();
-			return true;
-		} catch (e) {
-			await worker.query('ROLLBACK');
-			worker.release();
-			throw e;
-		}
-	}
-
-	protected async insertChannel(id: string): Promise<boolean> {
-		let channel = this.getChannel(id);
-		if (!channel || channel.type !== 'text') return false;
-		channel = (channel as Discord.TextChannel);
-		let channelid = channel.id; // To appease typescript in the upcoming map statement
-
-		// can only insert if channel is in the same guild as the command
-		if (!this.guild) return false;
-		let inGuild = this.guild.channels.cache.find(c => c.id === channelid);
-		if (!inGuild) return false;
-
-		let worker = await pgPool.connect();
-		try {
-			worker.query('BEGIN');
-
-			// check if channel exists already
-			let res = await worker.query('SELECT * FROM channels WHERE channelid = $1', [channel.id]);
-			if (!res.rows.length) {
-				await worker.query('INSERT INTO channels (channelid, channelname, serverid) VALUES ($1, $2, $3)', [channel.id, channel.name, this.guild.id]);
-			}
-
-			await worker.query('COMMIT');
-			worker.release();
-			return true;
-		} catch (e) {
-			await worker.query('ROLLBACK');
-			worker.release();
-			throw e;
-		}
+	protected getServer(id: string): Discord.Guild | undefined {
+		return client.guilds.cache.get(id);
 	}
 
 	/**
@@ -204,7 +161,8 @@ export abstract class BaseCommand {
 	 * @param channel The channel to reply in, defaults to the channel the command was used in
 	 */
 	protected reply(msg: string, channel?: DiscordChannel): void {
-		if (!channel) channel = this.message.channel;
+		if (!msg) return;
+		if (!channel) channel = this.channel;
 		channel.send(msg);
 	}
 
@@ -214,7 +172,8 @@ export abstract class BaseCommand {
 	 * @param channel The channel to reply in, defaults to the channel the command was used in
 	 */
 	protected errorReply(msg: string, channel?: DiscordChannel): void {
-		if (!channel) channel = this.message.channel;
+		if (!msg) return;
+		if (!channel) channel = this.channel;
 		channel.send('\u274C ' + msg);
 	}
 
@@ -225,7 +184,8 @@ export abstract class BaseCommand {
 	 * @param channel The channel to reply in, defaults to the channel the command was used in.
 	 */
 	protected sendCode(msg: string, language?: string, channel?: DiscordChannel): void {
-		if (!channel) channel = this.message.channel;
+		if (!msg) return;
+		if (!channel) channel = this.channel;
 		channel.send(`\`\`\`${language || ''}\n${msg}\n\`\`\``);
 	}
 

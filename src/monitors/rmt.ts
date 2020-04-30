@@ -54,7 +54,6 @@ export class TeamRatingMonitor extends BaseMonitor {
 	}
 
 	public async shouldExecute() {
-		if (!this.guild) return false; // This monitor is not designed for Private Messages
 		let res = await pgPool.query('SELECT channelid FROM teamraters WHERE channelid = $1', [this.channel.id]);
 		if (!res.rows.length) return false; // This channel isn't setup for team rating.
 

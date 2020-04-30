@@ -16,52 +16,9 @@ abstract class RmtCommand extends BaseCommand {
 	}
 
 	/**
-	 * Check if a channel exists in the database and insert it if not.
-	 * @param rawChannel The channelid to look for.
+	 * Parse user input into a format
+	 * @param formatid the id of the format
 	 */
-	protected checkChannel(rawChannel: string): Discord.TextChannel | void {
-		if (!this.guild) return this.errorReply(`This command cannot be used in a DM or Group Chat.`);
-		// Check if channel exists
-		let channelid = '';
-		let channel: Discord.TextChannel;
-		if (!toID(rawChannel)) {
-			channelid = this.channel.id;
-			channel = (this.channel as Discord.TextChannel);
-		} else if (/<#\d{18}>/.test(rawChannel)) {
-			rawChannel = rawChannel.trim();
-			channelid = rawChannel.substring(2, rawChannel.length - 1);
-			let tempChannel = this.getChannel(channelid);
-			channel = (tempChannel as Discord.TextChannel);
-		} else {
-			return this.errorReply(`Command usage: ${prefix}${this.cmd} @User OR User#tag, format, (#channel). #channel defaults to the current one if not provided.`);
-		}
-		if (channel.guild.id !== this.guild.id) return this.errorReply('Channel must be in this server.');
-
-		return channel;
-	}
-
-	/**
-	 * Check if a user exists in the database and insert it if not.
-	 * @param username The userid to look for.
-	 */
-	protected checkUser(username: string): Discord.User | void {
-		let user: Discord.User | undefined;
-		username = username.trim();
-		if (/<@!?\d{18}>/.test(username)) {
-			// tag, aka userid
-			let startingIndex = username.includes('!') ? 3 : 2;
-			user = this.getUser(username.substring(startingIndex, username.length - 1));
-			if (!user) return this.errorReply(`Unable to find the user "${username}".`);
-		} else if (/[^@#:]{1,32}#\d{4}/.test(username)) {
-			// try to extract from a username + discriminator (eg: Name#1111)
-			user = this.findUser(username.split('#')[0], username.split('#')[1]);
-			if (!user) return this.errorReply(`Unable to find the user "${username}".`);
-		} else {
-			return this.errorReply(`Command usage: ${prefix}${this.cmd} @User OR User#tag, format, (#channel). #channel defaults to the current one if not provided.`);
-		}
-		return user;
-	}
-
 	protected checkFormat(formatid: string): string | void {
 		formatid = toID(formatid);
 
@@ -112,17 +69,15 @@ export class AddTeamRater extends RmtCommand{
 		// Validate arguments
 		let [username, rawFormat, rawChannel] = this.target.split(',');
 
-		let user = this.checkUser(username);
-		if (!user) return; // Error message handled in checkUser
-		if (!(await this.insertUser(user.id))) throw new Error('Unable to insert user \`${user.id}\` into database.');
+		let user = this.getUser(username);
+		if (!user) return this.errorReply(`Unable to find the user "${username}".`);
 
 		let format = this.checkFormat(rawFormat);
 		if (!format) return; // Error message handled in checkFormat
 
 		// Check if channel exists
-		let channel = this.checkChannel(rawChannel);
-		if (!channel) return; // Error message handled in checkChannel
-		if (!(await this.insertChannel(channel.id))) throw new Error('Unable to insert channel \`${channel.id}\` into database.');
+		let channel = this.getChannel(rawChannel, true);
+		if (!channel) return this.errorReply(`Unable to find the channel "${rawChannel}".`);
 
 		this.worker = await pgPool.connect();
 
@@ -154,14 +109,14 @@ export class RemoveTeamRater extends RmtCommand {
 		// Validate arguments
 		let [username, rawFormat, rawChannel] = this.target.split(',');
 
-		let user = this.checkUser(username);
-		if (!user) return; // Error message handled by checkUser
+		let user = this.getUser(username);
+		if (!user) return this.errorReply(`Unable to find the user "${username}".`);
 
 		let format = this.checkFormat(rawFormat);
-		if (!format) return; // Error message handled by checkFormat
+		if (!format) return; // Error message handled in checkFormat
 
-		let channel = this.checkChannel(rawChannel);
-		if (!channel) return; // Error message handled by checkChannel
+		let channel = this.getChannel(rawChannel, true);
+		if (!channel) return this.errorReply(`Unable to find the channel "${rawChannel}".`);
 
 		// Ensure this user is a rater for this format in this channel
 		let res = await pgPool.query(`SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3`, [user.id, format, channel.id]);
