@@ -114,7 +114,7 @@ client.on('ready', () => {
 
 // Fires when we get a new message from discord. We ignore messages that aren't commands or are from a bot.
 client.on('message', async msg => {
-	verifyData(msg);
+	await verifyData(msg);
 	if (msg.author.bot) return;
 	if (!msg.content.startsWith(prefix)) {
 		// Handle Chat Monitors

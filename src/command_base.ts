@@ -184,7 +184,7 @@ export abstract class BaseCommand {
 	 * @param channel The channel to reply in, defaults to the channel the command was used in.
 	 */
 	protected sendCode(msg: string, language?: string, channel?: DiscordChannel): void {
-		if (!msg) return;
+		if (msg === '') return;
 		if (!channel) channel = this.channel;
 		channel.send(`\`\`\`${language || ''}\n${msg}\n\`\`\``);
 	}

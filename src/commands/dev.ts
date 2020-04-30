@@ -31,6 +31,7 @@ export class Eval extends BaseCommand {
 		try {
 			// tslint:disable-next-line: no-eval - only owners can use
 			result = await eval(this.target);
+			if (result === '') result = '""';
 		} catch (e) {
 			result = `An error occured: ${e.toString()}`;
 		}
