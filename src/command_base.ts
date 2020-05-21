@@ -53,7 +53,7 @@ export abstract class BaseCommand {
 	/**
 	 * Execute is the method called first when running a command.
 	 */
-	public abstract async execute(): Promise<void>;
+	public abstract async execute(): Promise<Discord.Message | void>;
 
 	/**
 	 * Checks if the user has permission to perform an action based on their discord permission flags.
@@ -107,6 +107,7 @@ export abstract class BaseCommand {
 		if (!channel) return;
 		if (!['text', 'news'].includes(channel.type)) return;
 		if (inServer && channel.guild && channel.guild.id !== this.guild.id) return;
+		// TODO If the requester cannot see the channel, it dosen't exist to them.
 		return (channel as DiscordChannel);
 	}
 
@@ -160,10 +161,10 @@ export abstract class BaseCommand {
 	 * @param msg The message to reply with
 	 * @param channel The channel to reply in, defaults to the channel the command was used in
 	 */
-	protected reply(msg: string, channel?: DiscordChannel): void {
+	protected reply(msg: string, channel?: DiscordChannel): Promise<Discord.Message> | void {
 		if (!msg) return;
 		if (!channel) channel = this.channel;
-		channel.send(msg);
+		return channel.send(msg);
 	}
 
 	/**
@@ -171,10 +172,10 @@ export abstract class BaseCommand {
 	 * @param msg The message to reply with
 	 * @param channel The channel to reply in, defaults to the channel the command was used in
 	 */
-	protected errorReply(msg: string, channel?: DiscordChannel): void {
+	protected errorReply(msg: string, channel?: DiscordChannel): Promise<Discord.Message> | void {
 		if (!msg) return;
 		if (!channel) channel = this.channel;
-		channel.send('\u274C ' + msg);
+		return channel.send('\u274C ' + msg);
 	}
 
 	/**
@@ -183,10 +184,10 @@ export abstract class BaseCommand {
 	 * @param language The programming language to use for syntax highlighting, defaults to an empty string (none)
 	 * @param channel The channel to reply in, defaults to the channel the command was used in.
 	 */
-	protected sendCode(msg: string, language?: string, channel?: DiscordChannel): void {
+	protected sendCode(msg: string, language?: string, channel?: DiscordChannel): Promise<Discord.Message> | void {
 		if (msg === '') return;
 		if (!channel) channel = this.channel;
-		channel.send(`\`\`\`${language || ''}\n${msg}\n\`\`\``);
+		return channel.send(`\`\`\`${language || ''}\n${msg}\n\`\`\``);
 	}
 
 	/**
@@ -216,4 +217,106 @@ export abstract class BaseMonitor extends BaseCommand {
 	}
 
 	public abstract async shouldExecute(): Promise<boolean>;
+}
+
+/**
+ * The ReactionPageTurner class allows you to create a message
+ * with a set of emoji underneath allowing the user to navigate
+ * through a set of pages.
+ */
+export abstract class ReactionPageTurner {
+	protected message: Discord.Message | null;
+	protected collector: Discord.ReactionCollector | null;
+	protected targetReactions: string[];
+	protected user: Discord.User;
+	protected page: number;
+	protected abstract lastPage: number;
+	protected options: Discord.ReactionCollectorOptions;
+	protected constructor(messageOrChannel: Discord.Message | DiscordChannel, user: Discord.User, options?: Discord.ReactionCollectorOptions) {
+		if (!options) {
+			options = {idle: 1000 * 60 * 5};
+		}
+
+		this.message = null;
+		this.collector = null;
+		this.options = options;
+		this.user = user;
+		// ['⏮️', '◀️', '▶️', '⏭️']
+		this.targetReactions = ['\u{23EE}\u{FE0F}', '\u{25C0}\u{FE0F}', '\u{25B6}\u{FE0F}', '\u{23ED}\u{FE0F}'];
+		this.page = 1;
+	}
+
+	/**
+	 * Initalize should be called at the end of the concrete class's contructor.
+	 * It's job is to finish some async work such as sending the initial message
+	 * that cannot be done in the constructor.
+	 * @param messageOrChannel
+	 * @param options
+	 */
+	protected async initalize(messageOrChannel: Discord.Message | DiscordChannel): Promise<void> {
+		if (this.message) throw new Error(`Reaction Page Turner already initalized.`);
+		if (!(messageOrChannel instanceof Discord.Message)) {
+			this.message = await messageOrChannel.send(this.buildPage(messageOrChannel.guild));
+		} else {
+			this.message = messageOrChannel;
+		}
+
+		const filter: Discord.CollectorFilter = (reaction, user) => this.targetReactions.includes(reaction.emoji.name) && this.user.id === user.id;
+		this.collector = new Discord.ReactionCollector(this.message, filter, this.options);
+
+		this.collector.on('collect', this.collect.bind(this));
+		this.collector.on('end', this.end.bind(this));
+
+		this.initalizeReactions();
+	}
+
+	private initalizeReactions(): void {
+		if (!this.message) throw new Error(`Message not initalized in page turner reactor.`);
+		for (let react of this.targetReactions) {
+			this.message.react(react);
+		}
+	}
+
+	/**
+	 * This method builds each page of the page turner.
+	 * @param guild Opional guild used only during initalization.
+	 */
+	protected abstract buildPage(guild?: Discord.Guild): Discord.MessageEmbed;
+
+	/**
+	 * Important note: Be sure to filter out reactions from the bot itself.
+	 */
+	protected async collect(reaction: Discord.MessageReaction, user: Discord.User): Promise<void> {
+		if (!this.message) throw new Error(`Message not initalized in page turner reactor.`);
+		await reaction.users.fetch();
+		reaction.users.remove(this.user);
+
+		switch (reaction.emoji.name) {
+		case '\u{23EE}\u{FE0F}':
+			if (this.page === 1) return;
+			this.page = 1;
+			break;
+		case '\u{25C0}\u{FE0F}':
+			if (this.page === 1) return;
+			this.page--;
+			break;
+		case '\u{25B6}\u{FE0F}':
+			if (this.page === this.lastPage) return;
+			this.page++;
+			break;
+		case '\u{23ED}\u{FE0F}':
+			if (this.page === this.lastPage) return;
+			this.page = this.lastPage;
+			break;
+		default:
+			throw new Error(`Unexpected reaction on page turner: ${reaction.emoji.name}`);
+		}
+
+		await this.message.edit(this.buildPage());
+	}
+
+	protected end(collected: Discord.Collection<string, Discord.MessageReaction>, reason: string): void {
+		if (!this.message) throw new Error(`Message not initalized in page turner reactor.`);
+		// Exists for overwrite options
+	}
 }

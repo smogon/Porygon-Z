@@ -25,7 +25,10 @@ abstract class RmtCommand extends BaseCommand {
 		let prefixRegexp = /^(?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY)/i;
 		let matches = prefixRegexp.exec(formatid);
 		if (matches) {
-			if (matches.length !== 1) return this.errorReply('A format can only have one generation.');
+			if (matches.length !== 1) {
+				this.errorReply('A format can only have one generation.');
+				return;
+			}
 			// Covert to the Gen # format
 			let gens: {[key: string]: number} = {
 				swsh: 8,
@@ -47,11 +50,17 @@ abstract class RmtCommand extends BaseCommand {
 			};
 			formatid = formatid.replace(matches[0], 'gen' + (gens[matches[0]] || 8));
 		}
-		if (!formatid.startsWith('gen')) return this.errorReply(`You must specify a generation for the format`);
+		if (!formatid.startsWith('gen')) {
+			this.errorReply(`You must specify a generation for the format`);
+			return;
+		}
 
 		let formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:(?:Nat|National) ?Dex|Doubles|D)? ?[OURNP]U|AG|LC|VGC|OM|(?:Over|Under|Rarely|Never)used)|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything Goes|Video Game Championships?|Other ?Meta(?:s|games?)?)\b/i;
 		let format = formatRegexp.exec(formatid);
-		if (!format || !format.length) return this.errorReply(`\`${formatid}\` is not a valid format.`);
+		if (!format || !format.length) {
+			this.errorReply(`\`${formatid}\` is not a valid format.`);
+			return;
+		}
 		return format[0];
 	}
 }

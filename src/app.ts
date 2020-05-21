@@ -31,6 +31,7 @@ require('./create-tables');
 const users = new Set<string>();
 const servers =  new Set<string>();
 const channels = new Set<string>();
+const userlist = new Set<string>();
 
 async function verifyData(message: Discord.Message) {
 	let worker = null;
@@ -64,6 +65,16 @@ async function verifyData(message: Discord.Message) {
 			await worker.query('INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)', [message.author.id, message.author.username, message.author.discriminator]);
 		}
 		users.add(message.author.id);
+	}
+
+	// Userlist
+	if (message.guild && !userlist.has(message.guild.id + ',' + message.author.id)) {
+		if (!worker) worker = await pgPool.connect();
+		let res = await worker.query('SELECT * FROM userlist WHERE serverid = $1 AND userid = $2', [message.guild.id, message.author.id]);
+		if (!res.rows.length) {
+			await worker.query('INSERT INTO userlist (serverid, userid) VALUES ($1, $2)', [message.guild.id, message.author.id]);
+		}
+		userlist.add(message.guild.id + ',' + message.author.id);
 	}
 
 	if (worker) worker.release();
