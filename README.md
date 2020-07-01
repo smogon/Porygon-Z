@@ -30,6 +30,7 @@ Once you have your invite link, follow it and authorize your bot to join the ser
 Now that your bot's account has been added to the server(s) you want it in, you need to setup the bot itself. First make sure you have [NodeJS](https://nodejs.org/en/) 10 or later installed. Next, clone the bot with git or download and unzip the bot's files. Once you have your files, create a file called `.env` in the root folder of your bot. `.env`'s contents should look like this:
 ```
 TOKEN=BOT_TOKEN
+ERRCHANNEL=CHANNELID
 ADMINS=SNOWFLAKE,SNOWFLAKE,...
 PREFIX=!
 PGHOST=localhost
@@ -39,6 +40,7 @@ PGPASSWORD=null
 PGDATABASE=porygonz
 ```
 - `BOT_TOKEN` is the token (your bot's "password") found on the bot tab of your application. 
+- `ERRCHANNEL` is the channel that will be used for the bot to report errors.
 - `OWNERS` is a comma serpated list of discord user snowflakes. You can get a user's snowflake by enabling developer mode in your discord account's user settings and then right clicking the user and selecting `Copy ID` from the dropdown. Owners will bypass all permission checks on all servers.
 - `PREFIX` is the bot's command prefix.
 - `PGHOST` is the postgresSQL server location.
