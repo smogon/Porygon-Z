@@ -181,6 +181,7 @@ process.on('uncaughtException', async err => {
 		console.error(e);
 	}
 });
+
 process.on('unhandledRejection', async err => {
 	try {
 		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
@@ -201,7 +202,7 @@ client.on('error', async (err) => {
 	} catch (e) {
 		console.error(e);
 	}
-})
+});
 
 // Login
 client.login(process.env.TOKEN);
