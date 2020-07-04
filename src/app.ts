@@ -25,7 +25,7 @@ interface IMonitorModule {
 }
 
 // Ensure database properly setup
-require('./create-tables');
+require('./database_version_control');
 
 // Database cache sets
 const users = new Set<string>();
@@ -171,38 +171,25 @@ client.on('message', async msg => {
 });
 
 // Setup crash handlers
-process.on('uncaughtException', async err => {
+async function onError(err: Error | {} | null | undefined) {
+	if (!err) return console.error(`Error with no details thrown.`);
 	try {
 		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
 		if (!reportChannel) return;
 		if (!['text', 'news'].includes(reportChannel.type)) return;
-		(reportChannel as Discord.TextChannel).send(`Error:  ${err}\nat:  ${err.stack}`);
-	} catch (e) {
-		console.error(e);
-	}
-});
+		let msg = `Error: ${err}`;
+		if (err instanceof Error) msg += `\nat: ${err.stack}`;
+		(reportChannel as Discord.TextChannel).send(msg);
+	} catch (e) {}
 
-process.on('unhandledRejection', async err => {
-	try {
-		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
-		if (!reportChannel) return;
-		if (!['text', 'news'].includes(reportChannel.type)) return;
-		(reportChannel as Discord.TextChannel).send(`Error:  ${err}`);
-	} catch (e) {
-		console.error(e);
-	}
-});
+	console.error(err);
+}
 
-client.on('error', async (err) => {
-	try {
-		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
-		if (!reportChannel) return;
-		if (!['text', 'news'].includes(reportChannel.type)) return;
-		(reportChannel as Discord.TextChannel).send(`Error:  ${err}\nat:  ${err.stack}`);
-	} catch (e) {
-		console.error(e);
-	}
-});
+process.on('uncaughtException', async err => onError);
+
+process.on('unhandledRejection', async err => onError);
+
+client.on('error', async err => onError);
 
 // Login
 client.login(process.env.TOKEN);
