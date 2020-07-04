@@ -171,11 +171,37 @@ client.on('message', async msg => {
 });
 
 // Setup crash handlers
-process.on('uncaughtException', err => {
-	console.error(err);
+process.on('uncaughtException', async err => {
+	try {
+		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
+		if (!reportChannel) return;
+		if (!['text', 'news'].includes(reportChannel.type)) return;
+		(reportChannel as Discord.TextChannel).send(`Error:  ${err}\nat:  ${err.stack}`);
+	} catch (e) {
+		console.error(e);
+	}
 });
-process.on('unhandledRejection', err => {
-	console.error(err);
+
+process.on('unhandledRejection', async err => {
+	try {
+		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
+		if (!reportChannel) return;
+		if (!['text', 'news'].includes(reportChannel.type)) return;
+		(reportChannel as Discord.TextChannel).send(`Error:  ${err}`);
+	} catch (e) {
+		console.error(e);
+	}
+});
+
+client.on('error', async (err) => {
+	try {
+		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
+		if (!reportChannel) return;
+		if (!['text', 'news'].includes(reportChannel.type)) return;
+		(reportChannel as Discord.TextChannel).send(`Error:  ${err}\nat:  ${err.stack}`);
+	} catch (e) {
+		console.error(e);
+	}
 });
 
 // Login
