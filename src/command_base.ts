@@ -191,6 +191,18 @@ export abstract class BaseCommand {
 	}
 
 	/**
+	 * Send a message to the server's log channel.
+	 * If one is not setup, the message is dropped.
+	 * @param msg The message to send
+	 */
+	protected async sendLog(msg: string | Discord.MessageEmbed): Promise<Discord.Message | void> {
+		if (!toID(msg)) return;
+		const channel = this.getChannel((await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [this.guild.id])).rows[0].logchannel);
+		if (!channel) return;
+		channel.send(msg);
+	}
+
+	/**
 	 * Used by app.ts to release a PoolClient in the event
 	 * a command using one crashes
 	 */

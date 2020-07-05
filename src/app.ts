@@ -41,7 +41,7 @@ async function verifyData(message: Discord.Message) {
 		if (!worker) worker = await pgPool.connect();
 		let res = await worker.query('SELECT * FROM servers WHERE serverid = $1', [message.guild.id]);
 		if (!res.rows.length) {
-			await worker.query('INSERT INTO servers (serverid, servername) VALUES ($1, $2)', [message.guild.id, message.guild.name]);
+			await worker.query('INSERT INTO servers (serverid, servername, logchannel) VALUES ($1, $2, $3)', [message.guild.id, message.guild.name, null]);
 		}
 		servers.add(message.guild.id);
 	}
@@ -72,7 +72,7 @@ async function verifyData(message: Discord.Message) {
 		if (!worker) worker = await pgPool.connect();
 		let res = await worker.query('SELECT * FROM userlist WHERE serverid = $1 AND userid = $2', [message.guild.id, message.author.id]);
 		if (!res.rows.length) {
-			await worker.query('INSERT INTO userlist (serverid, userid) VALUES ($1, $2)', [message.guild.id, message.author.id]);
+			await worker.query('INSERT INTO userlist (serverid, userid, boosting) VALUES ($1, $2, $3)', [message.guild.id, message.author.id, null]);
 		}
 		userlist.add(message.guild.id + ',' + message.author.id);
 	}
@@ -136,9 +136,7 @@ client.on('message', async msg => {
 				if (!(await monitor.shouldExecute())) continue;
 				await monitor.execute();
 			} catch (e) {
-				// TODO improved crashlogger
-				console.error(`A chat montior crashed:`);
-				console.error(e);
+				onError(e, 'A chat monitor crashed: ');
 			}
 			// Release any workers regardless of the result
 			monitor.releaseWorker();
@@ -162,8 +160,7 @@ client.on('message', async msg => {
 		await cmd.execute();
 	} catch (e) {
 		// TODO improved crashlogger
-		console.error(`A command crashed:`);
-		console.error(e);
+		onError(e, 'A chat command crashed: ');
 		msg.channel.send(`\u274C - An error occured while trying to run your command. The error has been logged, and we will fix it soon.`);
 	}
 	// Release any workers regardless of the result
@@ -171,18 +168,18 @@ client.on('message', async msg => {
 });
 
 // Setup crash handlers
-async function onError(err: Error | {} | null | undefined) {
-	if (!err) return console.error(`Error with no details thrown.`);
+async function onError(err: Error | {} | null | undefined, detail: string = "") {
+	if (!err) return console.log(`Error with no details thrown.`);
 	try {
 		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
 		if (!reportChannel) return;
 		if (!['text', 'news'].includes(reportChannel.type)) return;
-		let msg = `Error: ${err}`;
+		let msg = `${detail} ${err}`.trim();
 		if (err instanceof Error) msg += `\nat: ${err.stack}`;
 		(reportChannel as Discord.TextChannel).send(msg);
 	} catch (e) {}
 
-	console.error(err);
+	console.log(err);
 }
 
 process.on('uncaughtException', async err => onError);

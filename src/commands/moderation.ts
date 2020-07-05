@@ -81,44 +81,42 @@ export class Whois extends BaseCommand {
 	}
 }
 
-export class Boosters extends BaseCommand {
+export class EnableLogs extends BaseCommand {
 	constructor(message: Discord.Message) {
 		super(message);
 	}
 
-	public async execute() {
-		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply(`Access Denied.`);
-		this.guild.members.fetch(); // Load guild users to cache
+	async execute() {
+		if (!(await this.can('MANAGE_GUILD'))) return this.errorReply('Access Denied');
+		this.worker = await pgPool.connect();
 
-		let embed: Discord.MessageEmbedOptions = {
-			color: 0xf47fff,
-			description: `Current Nitro Boosters`,
-			author: {
-				name: this.guild.name,
-				icon_url: this.guild.iconURL() || '',
-			},
-			timestamp: Date.now(),
-			footer: {
-				text: `Server ID: ${this.guild.id}`,
-			}
-		}
-		embed.fields = []; // To appease typescript, we do this here
+		let res = await this.worker.query('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
+		if (res.rows[0].logchannel) return this.errorReply(`This server is already setup to log to <#${res.rows[0].logchannel}>.`);
 
-		for (let [id, gm] of this.guild.members.cache) {
-			if (!gm.premiumSince) continue;
-			let d = gm.premiumSince.toUTCString();
-			d = d.slice(0, d.indexOf(':') - 3);
-			embed.fields.push({
-				name: gm.user.tag,
-				value: `Since ${d}`,
-			});
-		}
+		await this.worker.query('UPDATE servers SET logchannel = $1 WHERE serverid = $2', [this.channel.id, this.guild.id]);
+		this.reply(`Server events will now be logged to this channel.`);
 
-		if (!embed.fields.length) embed.fields.push({
-			name: 'No Boosters',
-			value: 'Try this command again once you have a nitro booster.',
-		});
+		this.worker.release();
+		this.worker = null;
+	}
+}
 
-		this.channel.send({embed: embed});
+export class DisableLogs extends BaseCommand {
+	constructor(message: Discord.Message) {
+		super(message);
+	}
+
+	async execute() {
+		if (!(await this.can('MANAGE_GUILD'))) return this.errorReply('Access Denied');
+		this.worker = await pgPool.connect();
+
+		let res = await this.worker.query('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
+		if (!res.rows[0].logchannel) return this.errorReply(`This server is not setup to log messages to a log channel.`);
+
+		await this.worker.query('UPDATE servers SET logchannel = $1 WHERE serverid = $2', [null, this.guild.id]);
+		this.reply(`Server events will no longer be logged to this channel.`);
+
+		this.worker.release();
+		this.worker = null;
 	}
 }

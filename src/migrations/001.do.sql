@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS servers (
 
 CREATE TABLE IF NOT EXISTS channels (
 	channelid varchar(18),
-	channelName varchar(50) NOT NULL,
+	channelname varchar(50) NOT NULL,
 	serverid varchar(18) NOT NULL,
 	CONSTRAINT pk_channels PRIMARY KEY (channelid),
 	CONSTRAINT fk_channels_servers FOREIGN KEY (serverid) REFERENCES servers
