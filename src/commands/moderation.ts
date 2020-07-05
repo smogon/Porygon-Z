@@ -79,6 +79,12 @@ export class Whois extends BaseCommand {
 
 		this.channel.send({embed: embed});
 	}
+
+	public static help(): string {
+		return `${prefix}whois @user - Get detailed information on the selected user.\n` +
+			`Requires: Kick Members Permissions\n` +
+			`Aliases: None`;
+	}
 }
 
 export class EnableLogs extends BaseCommand {
@@ -99,6 +105,12 @@ export class EnableLogs extends BaseCommand {
 		this.worker.release();
 		this.worker = null;
 	}
+
+	public static help(): string {
+		return `${prefix}enablelogs - Log moderation actions to this channel.\n` +
+			`Requires: Manage Server Permissions\n` +
+			`Aliases: None`;
+	}
 }
 
 export class DisableLogs extends BaseCommand {
@@ -118,5 +130,11 @@ export class DisableLogs extends BaseCommand {
 
 		this.worker.release();
 		this.worker = null;
+	}
+
+	public static help(): string {
+		return `${prefix}disablelogs - Stop logging moderation actions to this channel.\n` +
+			`Requires: Manage Server Permissions\n` +
+			`Aliases: None`;
 	}
 }

@@ -121,4 +121,10 @@ export class Boosters extends BaseCommand {
 
 		new BoostPage(this.channel, this.author, res.rows);
 	}
+
+	public static help(): string {
+		return `${prefix}boosters - List this server's current Nitro Boosters and when they started boosting. Results may be out of date by up to 24 hours.\n` +
+			`Requires: Manage Roles Permissions\n` +
+			`Aliases: None`;
+	}
 }

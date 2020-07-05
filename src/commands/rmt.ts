@@ -71,8 +71,6 @@ export class AddTeamRater extends RmtCommand{
 	}
 
 	public async execute() {
-		// !addteamrater @user, format, #channel
-		// !addteamrater User#1111, format, #channel
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 
 		// Validate arguments
@@ -103,6 +101,12 @@ export class AddTeamRater extends RmtCommand{
 
 		this.reply(`${user.username} has been added as a team rater for ${format} in ${channel}`);
 	}
+
+	public static help(): string {
+		return `${prefix}addteamrater @user, format, #channel - Add @user as a team rater for the selected format in #channel.\n` +
+			`Requires: Kick Members Permissions\n` +
+			`Aliases: None`;
+	}
 }
 
 export class RemoveTeamRater extends RmtCommand {
@@ -111,8 +115,6 @@ export class RemoveTeamRater extends RmtCommand {
 	}
 
 	public async execute() {
-		// !removeteamrater @user, format, #channel
-		// !removeteamrater User#1111, format, #channel
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 
 		// Validate arguments
@@ -138,5 +140,11 @@ export class RemoveTeamRater extends RmtCommand {
 		await pgPool.query(`DELETE FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3`, [user.id, format, channel.id]);
 
 		this.reply(`${user.username} is no longer a team rater for ${format} in ${channel}`);
+	}
+
+	public static help(): string {
+		return `${prefix}removeteamrater @user, format, #channel - Remove @user from being a team rater for the selected format in #channel.\n` +
+			`Requires: Kick Members Permissions\n` +
+			`Aliases: None`;
 	}
 }

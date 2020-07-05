@@ -56,6 +56,17 @@ export abstract class BaseCommand {
 	public abstract async execute(): Promise<Discord.Message | void>;
 
 	/**
+	 * Help provides a help string containing information on the command
+	 * in question that can be pulled by the help command and can also
+	 * be used when the command in question is incorrectly used.
+	 *
+	 * It is static so it can be used without construction.
+	 */
+	public static help(): string {
+		return `No help is avaliable for this command.`;
+	};
+
+	/**
 	 * Checks if the user has permission to perform an action based on their discord permission flags.
 	 *
 	 * @param permission One of the the discord permission flags or supported custom flags. https://discord.js.org/#/docs/main/stable/class/Permissions?scrollTo=s-FLAGS

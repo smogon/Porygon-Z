@@ -63,7 +63,7 @@ class ActivityPage extends ReactionPageTurner {
 		}
 		embed.fields = []; // To appease typescript, we do this here
 
-		for (let i = (this.page - 1) * 10; i < (((this.page - 1) * 10) + this.rowsPerPage); i++) {
+		for (let i = (this.page - 1) * this.rowsPerPage; i < (((this.page - 1) * this.rowsPerPage) + this.rowsPerPage); i++) {
 			let row = this.data[i];
 			if (!row) break; // End of data
 
@@ -120,7 +120,7 @@ class ActivityPage extends ReactionPageTurner {
 		}
 		embed.fields = []; // To appease typescript, we do this here
 
-		for (let i = (this.page - 1) * 10; i < (((this.page - 1) * 10) + this.rowsPerPage); i++) {
+		for (let i = (this.page - 1) * this.rowsPerPage; i < (((this.page - 1) * this.rowsPerPage) + this.rowsPerPage); i++) {
 			let row = this.data[i];
 			if (!row) break; // End of data
 			if (this.target) {
@@ -195,10 +195,17 @@ export class Leaderboard extends BaseCommand {
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 		let granularity = this.target.trim();
 		if (!toID(granularity)) granularity = 'alltime';
-		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(`Usage: !leaderboard [day | week | month | alltime]`);
+		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(Leaderboard.help());
 
 		let res = await this.fetchData(granularity);
 		new ActivityPage(this.channel, this.author, res, granularity, false);
+	}
+
+	public static help(): string {
+		return `${prefix}leaderboard [day | week | month | alltime] - Gets the public chat leaderboard for the selected timeframe. Timeframe defaults to alltime.\n` +
+			`Requires: Kick Members Permissions\n` +
+			`Aliases: ${aliases.leaderboard.map(a => `${prefix}${a} `)}\n` +
+			`Related Commands: channelleaderboard, linecount, channellinecount`;
 	}
 }
 
@@ -244,10 +251,17 @@ export class ChannelLeaderboard extends BaseCommand {
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 		let granularity = this.target.trim();
 		if (!toID(granularity)) granularity = 'alltime';
-		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(`Usage: !channelleaderboard [day | week | month | alltime]`);
+		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(ChannelLeaderboard.help());
 
 		let res = await this.fetchData(granularity);
 		new ActivityPage(this.channel, this.author, res, granularity, true);
+	}
+
+	public static help(): string {
+		return `${prefix}channelleaderboard [day | week | month | alltime] - Gets the activity leaderboard for public channels in the selected timeframe. Timeframe defaults to alltime.\n` +
+			`Requires: Kick Members Permissions\n` +
+			`Aliases: ${aliases.channelleaderboard.map(a => `${prefix}${a} `)}\n` +
+			`Related Commands: leaderboard, linecount, channellinecount`;
 	}
 }
 
@@ -288,13 +302,20 @@ export class Linecount extends BaseCommand {
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 		let [rawTarget, granularity] = this.target.split(',').map(v => v.trim());
 		let target = this.getUser(rawTarget);
-		if (!target) return this.reply(`Usage: !linecount @user, [day | week | month | alltime]`);
+		if (!target) return this.reply(Linecount.help());
 
 		if (!toID(granularity)) granularity = 'day';
-		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(`Usage: !linecount @user, [day | week | month | alltime]`);
+		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(Linecount.help());
 
 		let res = await this.fetchData(granularity, target.id);
 		new ActivityPage(this.channel, this.author, res, granularity, target);
+	}
+
+	public static help(): string {
+		return `${prefix}linecount @user, [day | week | month | alltime] - Gets a user's public activity in the selected timeframe. Timeframe defaults to day.\n` +
+			`Requires: Kick Members Permissions\n` +
+			`Aliases: ${aliases.linecount.map(a => `${prefix}${a} `)}\n` +
+			`Related Commands: leaderboard, channelleaderboard, channellinecount`;
 	}
 }
 
@@ -336,12 +357,19 @@ export class ChannelLinecount extends BaseCommand {
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 		let [rawTarget, granularity] = this.target.split(',').map(v => v.trim());
 		let target = this.getChannel(rawTarget);
-		if (!target) return this.reply(`Usage: !channellinecount #channel, [day | week | month | alltime]`);
+		if (!target) return this.reply(ChannelLinecount.help());
 
 		if (!toID(granularity)) granularity = 'day';
-		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(`Usage: !channellinecount #channel, [day | week | month | alltime]`);
+		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(ChannelLinecount.help());
 
 		let res = await this.fetchData(granularity, target.id);
 		new ActivityPage(this.channel, this.author, res, granularity, target);
+	}
+
+	public static help(): string {
+		return `${prefix}channellinecount #channel, [day | week | month | alltime] - Gets a public channel's activity in the selected timeframe. Timeframe defaults to day.\n` +
+			`Requires: Kick Members Permissions\n` +
+			`Aliases: ${aliases.channellinecount.map(a => `${prefix}${a} `)}\n` +
+			`Related Commands: leaderboard, channelleaderboard, linecount`;
 	}
 }

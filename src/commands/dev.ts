@@ -18,6 +18,11 @@ export class Ping extends BaseCommand {
 	public async execute() {
 		this.reply(`Pong!`);
 	}
+
+	public static help(): string {
+		return `${prefix}ping - Pings the bot, used to check if the bot's command engine is working.\n` +
+			`Aliases: None`;
+	}
 }
 
 export class Eval extends BaseCommand {
