@@ -133,8 +133,9 @@ client.on('message', async msg => {
 		for (let [k, v] of monitors) {
 			const monitor = new (v as Constructable<BaseMonitor>)(msg);
 			try {
-				if (!(await monitor.shouldExecute())) continue;
-				await monitor.execute();
+				if (await monitor.shouldExecute()) {
+					await monitor.execute();
+				}
 			} catch (e) {
 				onError(e, 'A chat monitor crashed: ');
 			}
@@ -152,14 +153,13 @@ client.on('message', async msg => {
 	if (typeof command === 'string') command = commands.get(command);
 	// Throw if its another alias
 	if (typeof command === 'string') throw new Error(`Alias "${cmdID}" did not point to command.`);
-	if (!command || typeof command === 'string') return;
+	if (!command) return;
 
 	// 100% not an alias, so it must be a command class.
 	const cmd = new (command as Constructable<BaseCommand>)(msg);
 	try {
 		await cmd.execute();
 	} catch (e) {
-		// TODO improved crashlogger
 		onError(e, 'A chat command crashed: ');
 		msg.channel.send(`\u274C - An error occured while trying to run your command. The error has been logged, and we will fix it soon.`);
 	}
@@ -172,11 +172,11 @@ async function onError(err: Error | {} | null | undefined, detail: string = "") 
 	if (!err) return console.log(`Error with no details thrown.`);
 	try {
 		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
-		if (!reportChannel) return;
-		if (!['text', 'news'].includes(reportChannel.type)) return;
-		let msg = `${detail} ${err}`.trim();
-		if (err instanceof Error) msg += `\nat: ${err.stack}`;
-		(reportChannel as Discord.TextChannel).send(msg);
+		if (reportChannel && ['text', 'news'].includes(reportChannel.type)) {
+			let msg = `${detail} ${err}`.trim();
+			if (err instanceof Error) msg += `\nat: ${err.stack}`;
+			(reportChannel as Discord.TextChannel).send(msg);
+		}
 	} catch (e) {}
 
 	console.log(err);
