@@ -11,6 +11,7 @@ import fs = require('fs');
 
 import { prefix, ID, toID, pgPool } from './common';
 import { BaseCommand, BaseMonitor } from './command_base';
+import { lookup } from 'dns';
 
 interface Constructable<T> {
 	new(message: Discord.Message): T;
@@ -34,6 +35,7 @@ const channels = new Set<string>();
 const userlist = new Set<string>();
 
 async function verifyData(message: Discord.Message) {
+	if (lockdown) return;
 	let worker = null;
 
 	// Server
@@ -123,12 +125,18 @@ client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}.`);
 });
 
+let lockdown = false;
+export function shutdown() {
+	lockdown = true;
+}
+
 // Fires when we get a new message from discord. We ignore messages that aren't commands or are from a bot.
 client.on('message', async msg => {
 	if (msg.webhookID) return;
 	await verifyData(msg);
 	if (msg.author.bot) return;
 	if (!msg.content.startsWith(prefix)) {
+		if (lockdown) return; // Ignore - bot restarting
 		// Handle Chat Monitors
 		if (!msg.guild) return; // Ignore PMs
 		for (let [k, v] of monitors) {
@@ -148,6 +156,7 @@ client.on('message', async msg => {
 	// Attempt to run the request command if it exists.
 	// Skip if this is a PM.
 	if (!msg.guild) return msg.reply(`Commands cannot be used in private messages.`);
+	if (lockdown) return msg.reply(`The bot is restarting soon, please try again in a minute.`);
 
 	const cmdID = toID(msg.content.slice(prefix.length).split(' ')[0]);
 	let command = commands.get(cmdID);

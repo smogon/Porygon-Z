@@ -3,8 +3,11 @@
  * Basic development related commands, may rename later.
  */
 import Discord = require('discord.js');
+import { shutdown } from '../app';
 import { ID, prefix, toID, pgPool } from '../common';
 import { BaseCommand, DiscordChannel, IAliasList } from '../command_base';
+import * as child_process from 'child_process';
+let updateLock = false;
 
 export const aliases: IAliasList = {
 	eval: ['js'],
@@ -78,5 +81,53 @@ export class Query extends BaseCommand {
 
 		if (table === '\n') table = 'No rows returned';
 		return table;
+	}
+}
+
+export class Update extends BaseCommand {
+	constructor(message: Discord.Message) {
+		super(message);
+	}
+
+	public async execute() {
+		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
+		if (updateLock) return this.errorReply(`Another update is already in progress.`);
+		updateLock = true;
+
+		child_process.exec(`git pull --rebase origin master`, (error, stdout, stderr) => {
+			updateLock = false;
+			if (error) {
+				this.errorReply(`An error occured while updating the bot: `);
+				this.sendCode(error.stack || 'No stack trace found.');
+				return;
+			}
+			return this.reply(`Update complete.`);
+		});
+	}
+}
+
+export class Shutdown extends BaseCommand {
+	constructor(message: Discord.Message) {
+		super(message);
+	}
+
+	public async execute() {
+		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
+		if (updateLock) return this.errorReply(`Wait for the update to finish.`);
+		shutdown();
+
+		this.reply(`Shutting down...`);
+
+		// Incase the following never exists, kill in 10 seconds
+		setTimeout(() => {
+			console.log(`Graceful shutdown took too long, killing`);
+			process.exit();
+		}, 10000);
+
+		// empty the pool of database workers
+		await pgPool.end();
+
+		// exit
+		process.exit();
 	}
 }
