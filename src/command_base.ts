@@ -217,8 +217,9 @@ export abstract class BaseCommand {
 	 * Used by app.ts to release a PoolClient in the event
 	 * a command using one crashes
 	 */
-	public releaseWorker(): void {
+	public releaseWorker(warn: boolean = false): void {
 		if (this.worker) {
+			if (warn) console.warn(`Releasing PG worker for ${this.isMonitor ? 'monitor' : 'command'}: ${this.cmd}`);
 			this.worker.release();
 			this.worker = null;
 		}
@@ -312,7 +313,10 @@ export abstract class ReactionPageTurner {
 	protected async collect(reaction: Discord.MessageReaction, user: Discord.User): Promise<void> {
 		if (!this.message) throw new Error(`Message not initalized in page turner reactor.`);
 		await reaction.users.fetch();
-		reaction.users.remove(this.user);
+		try {
+			// Try to remove the user's reaction, don't throw if theres an error.
+			reaction.users.remove(this.user);
+		} catch (e) {}
 
 		switch (reaction.emoji.name) {
 		case '\u{23EE}\u{FE0F}':

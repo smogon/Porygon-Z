@@ -125,6 +125,7 @@ client.on('ready', () => {
 
 // Fires when we get a new message from discord. We ignore messages that aren't commands or are from a bot.
 client.on('message', async msg => {
+	if (msg.webhookID) return;
 	await verifyData(msg);
 	if (msg.author.bot) return;
 	if (!msg.content.startsWith(prefix)) {
@@ -140,7 +141,7 @@ client.on('message', async msg => {
 				onError(e, 'A chat monitor crashed: ');
 			}
 			// Release any workers regardless of the result
-			monitor.releaseWorker();
+			monitor.releaseWorker(true);
 		}
 		return;
 	}
@@ -164,12 +165,12 @@ client.on('message', async msg => {
 		msg.channel.send(`\u274C - An error occured while trying to run your command. The error has been logged, and we will fix it soon.`);
 	}
 	// Release any workers regardless of the result
-	cmd.releaseWorker();
+	cmd.releaseWorker(true);
 });
 
 // Setup crash handlers
 async function onError(err: Error | {} | null | undefined, detail: string = "") {
-	if (!err) return console.log(`Error with no details thrown.`);
+	if (!err) return console.error(`Error with no details thrown.`);
 	try {
 		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
 		if (reportChannel && ['text', 'news'].includes(reportChannel.type)) {
@@ -179,7 +180,7 @@ async function onError(err: Error | {} | null | undefined, detail: string = "") 
 		}
 	} catch (e) {}
 
-	console.log(err);
+	console.error(err);
 }
 
 process.on('uncaughtException', async err => onError);

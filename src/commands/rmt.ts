@@ -7,6 +7,11 @@ import Discord = require('discord.js');
 import { ID, prefix, toID, pgPool } from '../common';
 import { BaseCommand, DiscordChannel, IAliasList } from '../command_base';
 
+export const aliases: IAliasList = {
+	addteamrater: ['atr'],
+	removeteamrater: ['rtr'],
+};
+
 /**
  * Abstract class RMT commands extend to share access to useful methods.
  */
@@ -50,16 +55,15 @@ abstract class RmtCommand extends BaseCommand {
 			};
 			formatid = formatid.replace(matches[0], 'gen' + (gens[matches[0]] || 8));
 		}
-		if (!formatid.startsWith('gen')) {
-			this.errorReply(`You must specify a generation for the format`);
-			return;
-		}
 
-		let formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:(?:Nat|National) ?Dex|Doubles|D)? ?[OURNP]U|AG|LC|VGC|OM|(?:Over|Under|Rarely|Never)used)|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything Goes|Video Game Championships?|Other ?Meta(?:s|games?)?)\b/i;
+		let formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:(?:Nat|National) ?Dex|Doubles|D)? ?[OURNP]U|AG|LC|VGC|OM|BS[SD]|(?:Over|Under|Rarely|Never)used|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything ?Goes|Video ?Game ?Championships?|Battle ?(?:Spot|Stadium) ?(?:Singles?|Doubles?)|1v1|Other ?Meta(?:s|games?)?))\b/i;
 		let format = formatRegexp.exec(formatid);
 		if (!format || !format.length) {
 			this.errorReply(`\`${formatid}\` is not a valid format.`);
 			return;
+		}
+		if (!format[0].startsWith('gen')) {
+			format[0] = `gen8${format[0]}`;
 		}
 		return format[0];
 	}
@@ -76,6 +80,8 @@ export class AddTeamRater extends RmtCommand{
 		// Validate arguments
 		let [username, rawFormat, rawChannel] = this.target.split(',');
 
+		if (!toID(username) || !toID(rawFormat)) return this.reply(AddTeamRater.help());
+
 		let user = this.getUser(username);
 		if (!user) return this.errorReply(`Unable to find the user "${username}".`);
 
@@ -83,8 +89,13 @@ export class AddTeamRater extends RmtCommand{
 		if (!format) return; // Error message handled in checkFormat
 
 		// Check if channel exists
-		let channel = this.getChannel(rawChannel, true);
-		if (!channel) return this.errorReply(`Unable to find the channel "${rawChannel}".`);
+		let channel: DiscordChannel | void;
+		if (toID(rawChannel)) {
+			channel = this.getChannel(rawChannel, true);
+			if (!channel) return this.errorReply(`Unable to find the channel "${rawChannel}".`);
+		} else {
+			channel = this.channel;
+		}
 
 		this.worker = await pgPool.connect();
 
@@ -92,20 +103,21 @@ export class AddTeamRater extends RmtCommand{
 		let res = await this.worker.query(`SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3`, [user.id, format, channel.id]);
 		if (res.rows.length) {
 			// This user is already a rater for this format
+			this.releaseWorker();
 			return this.errorReply(`${user} is already a team rater for ${format} in ${channel}.`);
 		}
 
 		// Add user to team raters
 		await this.worker.query('INSERT INTO teamraters (userid, format, channelid) VALUES ($1, $2, $3)', [user.id, format, channel.id]);
-		this.worker.release();
+		this.releaseWorker();
 
 		this.reply(`${user.username} has been added as a team rater for ${format} in ${channel}`);
 	}
 
 	public static help(): string {
-		return `${prefix}addteamrater @user, format, #channel - Add @user as a team rater for the selected format in #channel.\n` +
+		return `${prefix}addteamrater @user, format, [#channel] - Add @user as a team rater for the selected format in #channel.\n` +
 			`Requires: Kick Members Permissions\n` +
-			`Aliases: None`;
+			`Aliases: ${prefix}atr`;
 	}
 }
 
@@ -120,14 +132,22 @@ export class RemoveTeamRater extends RmtCommand {
 		// Validate arguments
 		let [username, rawFormat, rawChannel] = this.target.split(',');
 
+		if (!toID(username) || !toID(rawFormat)) return this.reply(RemoveTeamRater.help());
+
 		let user = this.getUser(username);
 		if (!user) return this.errorReply(`Unable to find the user "${username}".`);
 
 		let format = this.checkFormat(rawFormat);
 		if (!format) return; // Error message handled in checkFormat
 
-		let channel = this.getChannel(rawChannel, true);
-		if (!channel) return this.errorReply(`Unable to find the channel "${rawChannel}".`);
+		// Check if channel exists
+		let channel: DiscordChannel | void;
+		if (toID(rawChannel)) {
+			channel = this.getChannel(rawChannel, true);
+			if (!channel) return this.errorReply(`Unable to find the channel "${rawChannel}".`);
+		} else {
+			channel = this.channel;
+		}
 
 		// Ensure this user is a rater for this format in this channel
 		let res = await pgPool.query(`SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3`, [user.id, format, channel.id]);
@@ -143,8 +163,8 @@ export class RemoveTeamRater extends RmtCommand {
 	}
 
 	public static help(): string {
-		return `${prefix}removeteamrater @user, format, #channel - Remove @user from being a team rater for the selected format in #channel.\n` +
+		return `${prefix}removeteamrater @user, format, [#channel] - Remove @user from being a team rater for the selected format in #channel.\n` +
 			`Requires: Kick Members Permissions\n` +
-			`Aliases: None`;
+			`Aliases: ${prefix}rtr`;
 	}
 }

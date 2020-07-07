@@ -49,6 +49,15 @@ export class ActivityMonitor extends BaseMonitor {
 	}
 
 	public async shouldExecute() {
+		// Insert channel line info - only for publicly accessible channels
+		await this.guild.roles.fetch();
+		const everyone = this.guild.roles.everyone; // everyone is always a role
+		if (!everyone) throw new Error(`Unable to find the everyone role when logging linecounts.`);
+		const permissions = this.channel.permissionOverwrites.get(everyone.id);
+		if (permissions && permissions.deny.has('VIEW_CHANNEL')) {
+			// There are custom permissions for @everyone on this channel, and @everyone cannot view the channel.
+			return false;
+		}
 		return true;
 	}
 
@@ -67,19 +76,6 @@ export class ActivityMonitor extends BaseMonitor {
 			await this.worker.query('UPDATE lines SET lines = lines + 1 WHERE userid = $1 AND logdate = $2 AND serverid = $3', [this.author.id, date, this.guild.id]);
 		}
 
-		// Insert channel line info - only for publicly accessible channels
-		await this.guild.roles.fetch();
-		const everyone = this.guild.roles.everyone; // everyone is always a role
-		if (!everyone) throw new Error(`Unable to find the everyone role when logging chat.`);
-		const permissions = this.channel.permissionOverwrites.get(everyone.id);
-		if (permissions && permissions.deny.has('VIEW_CHANNEL')) {
-			// There are custom permissions for @everyone on this channel, and @everyone cannot view the channel.
-			this.worker.release();
-			this.worker = null;
-			return;
-		}
-
-		// Ok its public
 		res = await this.worker.query('SELECT * FROM channellines WHERE channelid = $1 AND logdate = $2', [this.channel.id, date]);
 		if (!res.rows.length) {
 			// Insert new row

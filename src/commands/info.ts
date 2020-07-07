@@ -110,6 +110,11 @@ export class Help extends BaseCommand {
 				data.push({name: toID(k), help: desc});
 			}
 
+			// Alphabetical sort
+			data.sort((a, b) => {
+				return a.name.localeCompare(b.name);
+			});
+
 			new HelpPage(this.channel, this.author, data);
 		}
 	}
@@ -131,6 +136,21 @@ export class Directory extends BaseCommand {
 
 	public static help(): string {
 		return `${prefix}directory - Get the link for the smogon discord directory.\n` +
+			`Aliases: None`;
+	}
+}
+
+export class Github extends BaseCommand {
+	constructor(message: Discord.Message) {
+		super(message);
+	}
+
+	public async execute() {
+		this.reply(`Porygon-Z is open source! You can find our github here: https://github.com/smogon/Porygon-Z`);
+	}
+
+	public static help(): string {
+		return `${prefix}github - Get this bot's github repository link.\n` +
 			`Aliases: None`;
 	}
 }

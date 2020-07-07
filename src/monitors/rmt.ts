@@ -22,7 +22,7 @@ export class TeamRatingMonitor extends BaseMonitor {
 		this.format = '';
 		this.teamPasteRegexp = /https:\/\/pokepast\.es\/[0-9a-z]{16}/;
 		this.prefixRegexp = /^(?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY)/i;
-		this.formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:(?:Nat|National) ?Dex|Doubles|D)? ?[OURNP]U|AG|LC|VGC|OM|(?:Over|Under|Rarely|Never)used)|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything Goes|Video Game Championships?|Other ?Meta(?:s|games?)?)\b/i;
+		this.formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:(?:Nat|National) ?Dex|Doubles|D)? ?[OURNP]U|AG|LC|VGC|OM|BS[SD]|(?:Over|Under|Rarely|Never)used|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything ?Goes|Video ?Game ?Championships?|Battle ?(?:Spot|Stadium) ?(?:Singles?|Doubles?)|1v1|Other ?Meta(?:s|games?)?))\b/i;
 		this.raters = [];
 	}
 
@@ -50,6 +50,9 @@ export class TeamRatingMonitor extends BaseMonitor {
 			};
 			formatid = formatid.replace(matches[0], 'gen' + (gens[matches[0]] || 8));
 		}
+		if (!formatid.startsWith('gen')) {
+			formatid = `gen8${formatid}`;
+		}
 		return formatid;
 	}
 
@@ -66,12 +69,14 @@ export class TeamRatingMonitor extends BaseMonitor {
 		if (!res.rows.length) {
 			return false; // No results
 		} else {
-			if (!res.rows.every(r => {
+			res.rows = res.rows.filter(r => {
 				let user = this.getUser(r.userid);
 				if (!user || user.presence.status === 'offline') return false;
-				this.raters.push(`<@${r.userid}>`);
 				return true;
-			})) return false;
+			});
+
+			if (!res.rows.length) return false;
+			this.raters = res.rows.map(r => `<@${r.userid}>`);
 		}
 		if (cooldowns[this.channel.id] && cooldowns[this.channel.id][this.format] && cooldowns[this.channel.id][this.format] + (1000 * 60 * 60) >= Date.now()) {
 			return false;

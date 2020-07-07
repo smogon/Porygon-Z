@@ -16,12 +16,14 @@ async function updateBoosters() {
 		const boosting = res.rows.map(r => {
 			return r.userid;
 		});
+		const logChannel = client.channels.cache.get((await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [guildId])).rows[0].logchannel) as DiscordChannel;
 
 		for (let [id, gm] of guild.members.cache) {
-			const logChannel = client.channels.cache.get((await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [guildId])).rows[0].logchannel) as DiscordChannel;
 			if (gm.premiumSince) {
-
-				if (boosting.includes(id)) continue; // Already marked as boosting
+				if (boosting.includes(id)) {
+					boosting.splice(boosting.indexOf(id), 1);
+					continue; // Already marked as boosting
+				}
 				// Check if booster is in users table/userlist
 				if (!(await worker.query('SELECT userid FROM users WHERE userid = $1', [id])).rows.length) {
 					await worker.query('INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)', [gm.user.id, gm.user.username, gm.user.discriminator]);
@@ -38,7 +40,14 @@ async function updateBoosters() {
 				if (!boosting.includes(id)) continue; // Was not bosting before
 				await worker.query('UPDATE userlist SET boosting = NULL WHERE serverid = $1 AND userid = $2', [guildId, id]);
 				if (logChannel) logChannel.send(`<@${id}> is no longer boosting.`);
+				boosting.splice(boosting.indexOf(id), 1);
 			}
+		}
+
+		// Anyone left in boosting left the server and is no longer boosting
+		for (let desterter of boosting) {
+			await worker.query('UPDATE userlist SET boosting = NULL WHERE serverid = $1 AND userid = $2', [guildId, desterter]);
+			if (logChannel) logChannel.send(`<@${desterter}> is no longer boosting because they left the server.`);
 		}
 	}
 
