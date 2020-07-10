@@ -101,9 +101,9 @@ export abstract class BaseCommand {
 	 * Parse a string into a channel
 	 * @param rawChannel - A channelid, or channel mention
 	 * @param inServer - If the channel must be the in server the command was used in.
-	 * TODO how do we handle channels in database that the bot cant access via discord?
+	 * @param authorVisibilitity - If the author of the command must be able to see the channel to fetch it.
 	 */
-	protected getChannel(rawChannel: string, inServer: boolean = false): DiscordChannel | void {
+	protected getChannel(rawChannel: string, inServer: boolean = true, authorVisibilitity: boolean = true): DiscordChannel | void {
 		if (!toID(rawChannel)) return; // No information
 
 		let channelid = '';
@@ -118,7 +118,13 @@ export abstract class BaseCommand {
 		if (!channel) return;
 		if (!['text', 'news'].includes(channel.type)) return;
 		if (inServer && channel.guild && channel.guild.id !== this.guild.id) return;
-		// TODO If the requester cannot see the channel, it dosen't exist to them.
+		if (authorVisibilitity) {
+			let guildMember = channel.guild.member(this.author.id);
+			if (!guildMember) return; // User not in guild and cannot see channel
+			let permissions = channel.permissionsFor(guildMember);
+			if (!permissions) throw new Error(`Unable to get channel permissions for user. Channel: ${channel.id}, User: ${guildMember.id}`); // Should never happen since we are using a GuildMember
+			if (!permissions.has('VIEW_CHANNEL')) return;
+		}
 		return (channel as DiscordChannel);
 	}
 
@@ -208,7 +214,7 @@ export abstract class BaseCommand {
 	 */
 	protected async sendLog(msg: string | Discord.MessageEmbed): Promise<Discord.Message | void> {
 		if (!toID(msg)) return;
-		const channel = this.getChannel((await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [this.guild.id])).rows[0].logchannel);
+		const channel = this.getChannel((await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [this.guild.id])).rows[0].logchannel, false, false);
 		if (!channel) return;
 		channel.send(msg);
 	}

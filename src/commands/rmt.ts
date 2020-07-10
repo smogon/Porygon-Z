@@ -91,7 +91,7 @@ export class AddTeamRater extends RmtCommand{
 		// Check if channel exists
 		let channel: DiscordChannel | void;
 		if (toID(rawChannel)) {
-			channel = this.getChannel(rawChannel, true);
+			channel = this.getChannel(rawChannel);
 			if (!channel) return this.errorReply(`Unable to find the channel "${rawChannel}".`);
 		} else {
 			channel = this.channel;
@@ -143,7 +143,7 @@ export class RemoveTeamRater extends RmtCommand {
 		// Check if channel exists
 		let channel: DiscordChannel | void;
 		if (toID(rawChannel)) {
-			channel = this.getChannel(rawChannel, true);
+			channel = this.getChannel(rawChannel);
 			if (!channel) return this.errorReply(`Unable to find the channel "${rawChannel}".`);
 		} else {
 			channel = this.channel;
