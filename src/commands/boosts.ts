@@ -3,14 +3,13 @@
  * Nitro Boost related commands
  */
 import Discord = require('discord.js');
-import { client } from '../app';
+import { client, verifyData } from '../app';
 import { ID, prefix, toID, pgPool } from '../common';
 import { BaseCommand, ReactionPageTurner, DiscordChannel, IAliasList } from '../command_base';
 
 async function updateBoosters() {
 	const worker = await pgPool.connect();
 
-	//await client.guilds.
 	for (const [guildId, guild] of client.guilds.cache) {
 		let res = await worker.query('SELECT userid FROM userlist WHERE serverid = $1 AND boosting IS NOT NULL', [guildId]);
 		const boosting = res.rows.map(r => {
@@ -24,6 +23,12 @@ async function updateBoosters() {
 					boosting.splice(boosting.indexOf(id), 1);
 					continue; // Already marked as boosting
 				}
+
+				await verifyData({
+					author: gm.user,
+					guild: gm.guild,
+				});
+
 				// Check if booster is in users table/userlist
 				if (!(await worker.query('SELECT userid FROM users WHERE userid = $1', [id])).rows.length) {
 					await worker.query('INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)', [gm.user.id, gm.user.username, gm.user.discriminator]);
@@ -88,7 +93,7 @@ class BoostPage extends ReactionPageTurner {
 			},
 			timestamp: Date.now(),
 			footer: {
-				text: `Server ID: ${guild.id}`,
+				text: `Page ${this.page}/${this.lastPage}`,
 			}
 		}
 		embed.fields = []; // To appease typescript, we do this here
@@ -126,7 +131,8 @@ export class Boosters extends BaseCommand {
 			'FROM users u ' +
 			'INNER JOIN userlist ul ON u.userid = ul.userid ' +
 			'INNER JOIN servers s ON s.serverid = ul.serverid ' +
-			'WHERE s.serverid = $1 AND ul.boosting IS NOT NULL', [this.guild.id]);
+			'WHERE s.serverid = $1 AND ul.boosting IS NOT NULL ' +
+			'ORDER BY ul.boosting', [this.guild.id]);
 
 		new BoostPage(this.channel, this.author, res.rows);
 	}

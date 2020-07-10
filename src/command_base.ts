@@ -7,7 +7,7 @@
 import Discord = require('discord.js');
 import { ID, prefix, toID, pgPool } from './common';
 import { PoolClient } from 'pg';
-import { client } from './app';
+import { client, verifyData } from './app';
 
 export type DiscordChannel = Discord.TextChannel | Discord.NewsChannel;
 
@@ -172,6 +172,8 @@ export abstract class BaseCommand {
 	protected getServer(id: string): Discord.Guild | undefined {
 		return client.guilds.cache.get(id);
 	}
+
+	protected verifyData = verifyData;
 
 	/**
 	 * Reply to the message that triggered this command.

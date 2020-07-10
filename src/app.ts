@@ -10,7 +10,7 @@ import Discord = require('discord.js');
 import fs = require('fs');
 
 import { prefix, ID, toID, pgPool } from './common';
-import { BaseCommand, BaseMonitor } from './command_base';
+import { BaseCommand, BaseMonitor, DiscordChannel } from './command_base';
 import { lookup } from 'dns';
 
 interface Constructable<T> {
@@ -25,6 +25,12 @@ interface IMonitorModule {
 	[key: string]: Constructable<BaseMonitor>;
 }
 
+interface IDatabaseInsert {
+	author?: Discord.User; // Called author so its more compatible with Discord.Message
+	guild?: Discord.Guild;
+	channel?: DiscordChannel;
+}
+
 // Ensure database properly setup
 require('./database_version_control');
 
@@ -34,49 +40,54 @@ const servers =  new Set<string>();
 const channels = new Set<string>();
 const userlist = new Set<string>();
 
-async function verifyData(message: Discord.Message) {
+export async function verifyData(data: Discord.Message | IDatabaseInsert) {
 	if (lockdown) return;
 	let worker = null;
 
 	// Server
-	if (message.guild && !servers.has(message.guild.id)) {
+	if (data.guild && !servers.has(data.guild.id)) {
 		if (!worker) worker = await pgPool.connect();
-		let res = await worker.query('SELECT * FROM servers WHERE serverid = $1', [message.guild.id]);
+		let res = await worker.query('SELECT * FROM servers WHERE serverid = $1', [data.guild.id]);
 		if (!res.rows.length) {
-			await worker.query('INSERT INTO servers (serverid, servername, logchannel) VALUES ($1, $2, $3)', [message.guild.id, message.guild.name, null]);
+			await worker.query('INSERT INTO servers (serverid, servername, logchannel) VALUES ($1, $2, $3)', [data.guild.id, data.guild.name, null]);
 		}
-		servers.add(message.guild.id);
+		servers.add(data.guild.id);
 	}
 
 	// Channel
-	if (message.guild && message.channel && ['text', 'news'].includes(message.channel.type) && !channels.has(message.channel.id)) {
-		let channel = (message.channel as Discord.TextChannel | Discord.NewsChannel);
+	if (data.guild && data.channel && ['text', 'news'].includes(data.channel.type) && !channels.has(data.channel.id)) {
+		let channel = (data.channel as Discord.TextChannel | Discord.NewsChannel);
 		if (!worker) worker = await pgPool.connect();
 		let res = await worker.query('SELECT * FROM channels WHERE channelid = $1', [channel.id]);
 		if (!res.rows.length) {
-			await worker.query('INSERT INTO channels (channelid, channelname, serverid) VALUES ($1, $2, $3)', [channel.id, channel.name, message.guild.id]);
+			await worker.query('INSERT INTO channels (channelid, channelname, serverid) VALUES ($1, $2, $3)', [channel.id, channel.name, data.guild.id]);
 		}
-		channels.add(message.channel.id);
+		channels.add(data.channel.id);
 	}
 
 	// User
-	if (!users.has(message.author.id)) {
+	if (data.author && !users.has(data.author.id)) {
 		if (!worker) worker = await pgPool.connect();
-		let res = await worker.query('SELECT * FROM users WHERE userid = $1', [message.author.id]);
+		let res = await worker.query('SELECT * FROM users WHERE userid = $1', [data.author.id]);
 		if (!res.rows.length) {
-			await worker.query('INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)', [message.author.id, message.author.username, message.author.discriminator]);
+			await worker.query('INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)', [data.author.id, data.author.username, data.author.discriminator]);
 		}
-		users.add(message.author.id);
+		users.add(data.author.id);
 	}
 
 	// Userlist
-	if (message.guild && !userlist.has(message.guild.id + ',' + message.author.id)) {
-		if (!worker) worker = await pgPool.connect();
-		let res = await worker.query('SELECT * FROM userlist WHERE serverid = $1 AND userid = $2', [message.guild.id, message.author.id]);
-		if (!res.rows.length) {
-			await worker.query('INSERT INTO userlist (serverid, userid, boosting) VALUES ($1, $2, $3)', [message.guild.id, message.author.id, null]);
+	if (data.guild && data.author && !userlist.has(data.guild.id + ',' + data.author.id)) {
+		// Validate they are both in the same server just in case
+		await data.guild.members.fetch();
+		const userInServer = data.guild.members.cache.has(data.author.id);
+		if (userInServer) {
+			if (!worker) worker = await pgPool.connect();
+			let res = await worker.query('SELECT * FROM userlist WHERE serverid = $1 AND userid = $2', [data.guild.id, data.author.id]);
+			if (!res.rows.length) {
+				await worker.query('INSERT INTO userlist (serverid, userid, boosting) VALUES ($1, $2, $3)', [data.guild.id, data.author.id, null]);
+			}
+			userlist.add(data.guild.id + ',' + data.author.id);
 		}
-		userlist.add(message.guild.id + ',' + message.author.id);
 	}
 
 	if (worker) worker.release();

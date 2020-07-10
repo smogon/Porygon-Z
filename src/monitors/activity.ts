@@ -36,6 +36,14 @@ async function prune() {
 	} catch (e) {
 		await worker.query('ROLLBACK');
 		worker.release();
+
+		let nextPrune = new Date();
+		nextPrune.setDate(nextPrune.getDate() + 1);
+		nextPrune.setHours(0, 0, 0, 0);
+		setTimeout(async () => {
+			prune();
+		}, nextPrune.getTime() - Date.now());
+
 		throw e;
 	}
 }
@@ -65,6 +73,12 @@ export class ActivityMonitor extends BaseMonitor {
 		if (!this.guild) return; // should never happen
 		this.worker = await pgPool.connect();
 		const date = new Date(); // Log date
+
+		await this.verifyData({
+			author: this.author,
+			guild: this.guild,
+			channel: this.channel,
+		});
 
 		// Insert user line info
 		let res = await this.worker.query('SELECT * FROM lines WHERE userid = $1 AND logdate = $2 AND serverid = $3', [this.author.id, date, this.guild.id]);

@@ -97,6 +97,12 @@ export class AddTeamRater extends RmtCommand{
 			channel = this.channel;
 		}
 
+		await this.verifyData({
+			author: user,
+			guild: this.guild,
+			channel: channel,
+		});
+
 		this.worker = await pgPool.connect();
 
 		// Ensure this user isnt already a rater for this format
