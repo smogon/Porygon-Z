@@ -131,6 +131,57 @@ for (const file of monitorFiles) {
 	}
 }
 
+// Message Delete and Edit event methods.
+client.on('messageDelete', async message => {
+	if (message.author?.bot) return;
+	let logs;
+	let logEntry: Discord.GuildAuditLogsEntry | undefined;
+	let modLog;
+	try {
+	logs = await message.guild?.fetchAuditLogs({type: 72});
+	logEntry = logs!.entries.first();
+	} catch (e) {
+		console.error(e)
+	}
+	  
+	let deletedEmbed = new Discord.MessageEmbed()
+	.setTitle('A message has been deleted.')
+	.setColor('#ff0000')
+	.addField('Author', `${message.author || 'null'}`)
+	.addField('Message Content', `${message.content || 'null'}`)
+	.addField('channel', `${message.channel || 'null'}`)
+	.addField('executor', `${`${message.author} or ${logEntry!.executor}(Check Audit Logs for full details)` || 'null'}`)
+	.addField('reason', `${logEntry!.reason || 'Unspecified'}`);
+
+	try {
+		// Should query this from the server table(along with adding stuff to the table), but whatever, I'll look at it later.
+		modLog = await client.channels.fetch('modlogID');
+		(modLog as Discord.TextChannel).send(deletedEmbed);
+	} catch (e) {
+		console.error(e);
+	}
+});
+
+client.on('messageUpdate', async (oldMessage, newMessage) => {
+	if (oldMessage.author?.bot) return;
+	let modLog;
+
+	let editedEmbed = new Discord.MessageEmbed()
+	.setTitle('A message has been edited')
+	.setColor('#ff0000')
+	.addField('Author', `${oldMessage.author || 'null'}`)
+	.addField('Old Message', `${oldMessage.content || 'null'}`)
+	.addField('Channel', `${oldMessage.channel || 'null'}`)
+	.addField('New Message', `${newMessage.content || 'null'}`);
+
+	try {
+		modLog = await client.channels.fetch('modlogID');
+		(modLog as Discord.TextChannel).send(editedEmbed);
+	} catch (e) {
+		console.error(e)
+	}
+});
+
 client.on('ready', () => {
 	if (!client || !client.user) throw new Error(`Bot not logged in and ready event triggered.`); // Should never happen
 	console.log(`Logged in as ${client.user.tag}.`);
