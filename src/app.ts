@@ -137,6 +137,7 @@ client.on('messageDelete', async message => {
 	let logs;
 	let logEntry: Discord.GuildAuditLogsEntry | undefined;
 	let modLog;
+	let modLogID = await pgPool.query('SELECT logchannel FROM servers WHERE serverid === $1', [message.guild?.id])
 	try {
 	logs = await message.guild?.fetchAuditLogs({type: 72});
 	logEntry = logs!.entries.first();
@@ -147,15 +148,14 @@ client.on('messageDelete', async message => {
 	let deletedEmbed = new Discord.MessageEmbed()
 	.setTitle('A message has been deleted.')
 	.setColor('#ff0000')
-	.addField('Author', `${message.author || 'null'}`)
-	.addField('Message Content', `${message.content || 'null'}`)
-	.addField('channel', `${message.channel || 'null'}`)
-	.addField('executor', `${`${message.author} or ${logEntry!.executor}(Check Audit Logs for full details)` || 'null'}`)
-	.addField('reason', `${logEntry!.reason || 'Unspecified'}`);
+	.addField('Author', `${message.author}`)
+	.addField('Message Content', `${message.content}`)
+	.addField('channel', `${message.channel}`)
+	.addField('executor', `${`${message.author} or ${logEntry!.executor}(Check Audit Logs for full details)`}`)
+	.addField('reason', `${logEntry!.reason}`);
 
 	try {
-		// Should query this from the server table(along with adding stuff to the table), but whatever, I'll look at it later.
-		modLog = await client.channels.fetch('modlogID');
+		modLog = await client.channels.fetch(modLogID.rows[0].serverid);
 		(modLog as Discord.TextChannel).send(deletedEmbed);
 	} catch (e) {
 		console.error(e);
@@ -165,17 +165,18 @@ client.on('messageDelete', async message => {
 client.on('messageUpdate', async (oldMessage, newMessage) => {
 	if (oldMessage.author?.bot) return;
 	let modLog;
+	let modLogID = await pgPool.query('SELECT logchannel FROM servers WHERE serverid === $1', [oldMessage.guild?.id])
 
 	let editedEmbed = new Discord.MessageEmbed()
 	.setTitle('A message has been edited')
 	.setColor('#ff0000')
-	.addField('Author', `${oldMessage.author || 'null'}`)
-	.addField('Old Message', `${oldMessage.content || 'null'}`)
-	.addField('Channel', `${oldMessage.channel || 'null'}`)
-	.addField('New Message', `${newMessage.content || 'null'}`);
+	.addField('Author', `${oldMessage.author}`)
+	.addField('Old Message', `${oldMessage.content}`)
+	.addField('Channel', `${oldMessage.channel}`)
+	.addField('New Message', `${newMessage.content}`);
 
 	try {
-		modLog = await client.channels.fetch('modlogID');
+		modLog = await client.channels.fetch(modLogID.rows[0].serverid);
 		(modLog as Discord.TextChannel).send(editedEmbed);
 	} catch (e) {
 		console.error(e)
