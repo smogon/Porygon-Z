@@ -5,12 +5,85 @@
  */
 import Discord = require('discord.js');
 import { ID, prefix, toID, pgPool } from '../common';
-import { BaseCommand, DiscordChannel, IAliasList } from '../command_base';
+import { BaseCommand, DiscordChannel, IAliasList, ReactionPageTurner } from '../command_base';
 
 export const aliases: IAliasList = {
 	addteamrater: ['atr'],
 	removeteamrater: ['rtr'],
 };
+
+class RaterList extends ReactionPageTurner {
+	protected lastPage: number;
+	private guild: Discord.Guild;
+	private data: any[];
+	private format: string | null;
+	constructor(channel: DiscordChannel, user: Discord.User, guild: Discord.Guild, data: any[], format?: string, options?: Discord.ReactionCollectorOptions) {
+		super(channel, user, options);
+
+		this.guild = guild;
+		this.data = data;
+		this.format = format || null;
+		this.lastPage = Math.ceil(this.data.length / 10);
+
+		this.initalize(channel);
+	}
+
+	public buildPage(): Discord.MessageEmbed {
+		let embed: Discord.MessageEmbedOptions = {
+			color: 0x6194fd,
+			description: `${this.format ? this.format + ' ' : ''}Team Raters for ${this.guild.name}`,
+			author: {
+				name: this.guild.name,
+				icon_url: this.guild.iconURL() || '',
+			},
+			timestamp: Date.now(),
+			footer: {
+				text: `Page ${this.page}/${this.lastPage || 1}`,
+			}
+		}
+
+		if (this.format) {
+			embed.fields = this.buildFormat();
+		} else {
+			embed.fields = this.buildFull();
+		}
+
+		if (!embed.fields.length) {
+			embed.fields.push({
+				name: 'No Team Raters Found',
+				value: 'Try a more general search maybe?',
+			});
+		}
+
+		return new Discord.MessageEmbed(embed);
+	}
+
+	private buildFull(): Discord.EmbedFieldData[] {
+		let formats: {[format: string]: string[]} = {};
+		let fields: Discord.EmbedFieldData[] = [];
+
+		for (let row of this.data) {
+			if (!formats[row.format]) formats[row.format] = [];
+			formats[row.format].push(row.name + '#' + row.discriminator);
+		}
+
+		for (let format in formats) {
+			fields.push({
+				name: format,
+				value: formats[format].join(', '),
+			});
+		}
+
+		return fields;
+	}
+
+	private buildFormat(): Discord.EmbedFieldData[] {
+		return [{
+			name: this.format,
+			value: this.data.map(v => `${v.name}#${v.discriminator}`).join(', ') || 'No Team Raters Found.',
+		}];
+	}
+}
 
 /**
  * Abstract class RMT commands extend to share access to useful methods.
@@ -24,14 +97,14 @@ abstract class RmtCommand extends BaseCommand {
 	 * Parse user input into a format
 	 * @param formatid the id of the format
 	 */
-	protected checkFormat(formatid: string): string | void {
+	protected checkFormat(formatid: string, silent: boolean = false): string | void {
 		formatid = toID(formatid);
 
 		let prefixRegexp = /^(?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY)/i;
 		let matches = prefixRegexp.exec(formatid);
 		if (matches) {
 			if (matches.length !== 1) {
-				this.errorReply('A format can only have one generation.');
+				if (!silent) this.errorReply('A format can only have one generation.');
 				return;
 			}
 			// Covert to the Gen # format
@@ -56,10 +129,10 @@ abstract class RmtCommand extends BaseCommand {
 			formatid = formatid.replace(matches[0], 'gen' + (gens[matches[0]] || 8));
 		}
 
-		let formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:(?:Nat|National) ?Dex|Doubles|D)? ?[OURNP]U|AG|LC|VGC|OM|BS[SD]|(?:Over|Under|Rarely|Never)used|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything ?Goes|Video ?Game ?Championships?|Battle ?(?:Spot|Stadium) ?(?:Singles?|Doubles?)|1v1|Other ?Meta(?:s|games?)?))\b/i;
+		let formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:Nat|National) ?Dex|Doubles|D)? ?(?:[OURNPZ]U|AG|LC|VGC|OM|BS[SD]|(?:Over|Under|Rarely|Never|Zero)used|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything ?Goes|Video ?Game ?Championships?|Battle ?(?:Spot|Stadium) ?(?:Singles?|Doubles?)|1v1|Other ?Meta(?:s|games?)?))\b/i;
 		let format = formatRegexp.exec(formatid);
 		if (!format || !format.length) {
-			this.errorReply(`\`${formatid}\` is not a valid format.`);
+			if (!silent) this.errorReply(`\`${formatid}\` is not a valid format.`);
 			return;
 		}
 		if (!format[0].startsWith('gen')) {
@@ -175,5 +248,62 @@ export class RemoveTeamRater extends RmtCommand {
 		return `${prefix}removeteamrater @user, format, [#channel] - Remove @user from being a team rater for the selected format in #channel.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${prefix}rtr`;
+	}
+}
+
+export class ListRaters extends RmtCommand {
+	constructor(message: Discord.Message) {
+		super(message);
+	}
+
+	public async execute() {
+		let [rawFormat, rawChannel, server] = this.target.split(',').map(v => v.trim());
+		let allowServerName = false;
+		if (!this.guild) {
+			this.guild = await this.getServer(server, true, true) || null;
+			if (!this.guild) {
+				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				return this.sendCode(ListRaters.help());
+			}
+			allowServerName = true;
+		}
+		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
+
+		let format = this.checkFormat(rawFormat, true);
+		let channel = this.getChannel(rawChannel, true, true, allowServerName);
+
+		if (!format) {
+			let res = await pgPool.query(`SELECT DISTINCT u.name, u.discriminator, tr.format FROM teamraters tr ` +
+			`INNER JOIN channels ch ON tr.channelid = ch.channelid ` +
+			`INNER JOIN servers s ON ch.serverid = s.serverid ` +
+			`INNER JOIN users u ON tr.userid = u.userid ` +
+			`WHERE s.serverid = $1 ` +
+			`ORDER BY tr.format;`, [this.guild.id]);
+
+			new RaterList(this.channel, this.author, this.guild, res.rows);
+		} else if (channel) {
+			let res = await pgPool.query(`SELECT u.name, u.discriminator, ch.channelname FROM teamraters tr ` +
+			`INNER JOIN users u ON tr.userid = u.userid ` +
+			`INNER JOIN channels ch ON tr.channelid = ch.channelid ` +
+			`WHERE tr.format = $1 AND tr.channelid = $2 ` +
+			`ORDER BY u.name, u.discriminator`, [format, channel.id]);
+
+			new RaterList(this.channel, this.author, this.guild, res.rows, format);
+		} else {
+			let res = await pgPool.query(`SELECT DISTINCT u.name, u.discriminator FROM teamraters tr ` +
+			`INNER JOIN users u ON tr.userid = u.userid ` +
+			`WHERE tr.format = $1 ` +
+			`ORDER BY u.name, u.discriminator`, [format]);
+
+			new RaterList(this.channel, this.author, this.guild, res.rows, format);
+		}
+	}
+
+	public static help(): string {
+		return `${prefix}listraters [format], [#channel], [server] - List the team raters for the provided format in the provided channel. If no channel is provided, the default channel is the current one.` +
+		`If no format is provided, the command will list all formats and team raters for the server.\n` +
+		`You can leave arguments blank in PMs (other than server) eg: ${prefix}listraters , , Server Name\n` +
+		`Requires: Kick Members Permissions\n` +
+		`Aliases: None`;
 	}
 }
