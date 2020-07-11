@@ -57,6 +57,10 @@ export class ActivityMonitor extends BaseMonitor {
 	}
 
 	public async shouldExecute() {
+		if (!this.guild) {
+			// Should never happen, monitors do not run in PMs
+			throw new Error(`Activity monitor attempted to run outide of a guild.`);
+		}
 		// Insert channel line info - only for publicly accessible channels
 		await this.guild.roles.fetch();
 		const everyone = this.guild.roles.everyone; // everyone is always a role
@@ -70,7 +74,10 @@ export class ActivityMonitor extends BaseMonitor {
 	}
 
 	public async execute() {
-		if (!this.guild) return; // should never happen
+		if (!this.guild) {
+			// Should never happen, monitors do not run in PMs
+			throw new Error(`Activity monitor attempted to run outide of a guild.`);
+		}
 		this.worker = await pgPool.connect();
 		const date = new Date(); // Log date
 

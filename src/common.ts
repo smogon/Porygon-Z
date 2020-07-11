@@ -3,7 +3,7 @@ import PG = require('pg');
 export type ID = '' | string & {__isID: true};
 
 // The prefix to all bot commands
-export const prefix = process.env.PREFIX || '!';
+export const prefix = process.env.PREFIX || '$';
 
 export const pgPool = new PG.Pool();
 

@@ -36,6 +36,7 @@ export class Whois extends BaseCommand {
 	}
 
 	public async execute() {
+		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply(`Access Denied.`);
 
 		let user = this.getUser(this.target);
@@ -93,6 +94,7 @@ export class EnableLogs extends BaseCommand {
 	}
 
 	async execute() {
+		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
 		if (!(await this.can('MANAGE_GUILD'))) return this.errorReply('Access Denied');
 		this.worker = await pgPool.connect();
 
@@ -119,6 +121,7 @@ export class DisableLogs extends BaseCommand {
 	}
 
 	async execute() {
+		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
 		if (!(await this.can('MANAGE_GUILD'))) return this.errorReply('Access Denied');
 		this.worker = await pgPool.connect();
 

@@ -65,6 +65,7 @@ abstract class RmtCommand extends BaseCommand {
 		if (!format[0].startsWith('gen')) {
 			format[0] = `gen8${format[0]}`;
 		}
+		if (format[0] === 'gen8natdexou') format[0] = 'gen8natdex';
 		return format[0];
 	}
 }
@@ -75,6 +76,7 @@ export class AddTeamRater extends RmtCommand{
 	}
 
 	public async execute() {
+		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 
 		// Validate arguments
@@ -133,6 +135,7 @@ export class RemoveTeamRater extends RmtCommand {
 	}
 
 	public async execute() {
+		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 
 		// Validate arguments

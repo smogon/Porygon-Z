@@ -53,6 +53,7 @@ export class TeamRatingMonitor extends BaseMonitor {
 		if (!formatid.startsWith('gen')) {
 			formatid = `gen8${formatid}`;
 		}
+		if (formatid === 'gen8natdexou') formatid = 'gen8natdex';
 		return formatid;
 	}
 

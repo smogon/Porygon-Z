@@ -166,7 +166,6 @@ client.on('message', async msg => {
 	}
 	// Attempt to run the request command if it exists.
 	// Skip if this is a PM.
-	if (!msg.guild) return msg.reply(`Commands cannot be used in private messages.`);
 	if (lockdown) return msg.reply(`The bot is restarting soon, please try again in a minute.`);
 
 	const cmdID = toID(msg.content.slice(prefix.length).split(' ')[0]);

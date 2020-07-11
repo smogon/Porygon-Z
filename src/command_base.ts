@@ -31,7 +31,7 @@ export abstract class BaseCommand {
 	protected target: string;
 	protected author: Discord.User;
 	protected channel: DiscordChannel;
-	protected guild: Discord.Guild;
+	protected guild: Discord.Guild | null;
 	protected worker: PoolClient | null;
 	protected isMonitor: boolean;
 
@@ -45,7 +45,7 @@ export abstract class BaseCommand {
 		this.target = target.join(' ');
 		this.author = message.author;
 		this.channel = (message.channel as DiscordChannel);
-		this.guild = (message.guild as Discord.Guild);
+		this.guild = message.guild;
 		this.worker = null;
 		this.isMonitor = false;
 	}
@@ -75,12 +75,13 @@ export abstract class BaseCommand {
 	 */
 	protected async can(permission: string, user?: Discord.User, guild?: Discord.Guild): Promise<boolean> {
 		if (!user) user = this.author;
-		if (!guild) guild = this.guild;
+		if (!guild && this.guild) guild = this.guild;
 		const permissions = Object.keys(Discord.Permissions.FLAGS);
 		const customPermissions = ['EVAL']; // Custom Permissions for Bot Owners
 		if (!permissions.includes(permission) && !customPermissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
 		// Bot admins bypass all
 		if ((process.env.ADMINS || '').split(',').map(toID).includes(toID(user.id))) return true;
+		if (!guild) return false; // In PMs, all actions return false unless you are a bot admin
 
 		// Handle custom permissions
 		const member = await guild.members.fetch(user);
@@ -102,22 +103,33 @@ export abstract class BaseCommand {
 	 * @param rawChannel - A channelid, or channel mention
 	 * @param inServer - If the channel must be the in server the command was used in.
 	 * @param authorVisibilitity - If the author of the command must be able to see the channel to fetch it.
+	 * @param allowName - If this is true, the method will attempt to get the channel via matching its name. This can be risky since channels can share names.
 	 */
-	protected getChannel(rawChannel: string, inServer: boolean = true, authorVisibilitity: boolean = true): DiscordChannel | void {
+	protected getChannel(rawChannel: string, inServer: boolean = true, authorVisibilitity: boolean = true, allowName: boolean = false): DiscordChannel | void {
 		if (!toID(rawChannel)) return; // No information
 
 		let channelid = '';
 		if (/<#\d{18}>/.test(rawChannel)) {
 			rawChannel = rawChannel.trim();
 			channelid = rawChannel.substring(2, rawChannel.length - 1);
-		} else {
-			channelid = rawChannel;
+		} else if (this.guild && allowName) {
+			for (let [k, v] of this.guild.channels.cache) {
+				if (toID(v.name) === toID(rawChannel) && ['news', 'text'].includes(v.type)) {
+					// Validation of visibility handled below
+					channelid = k;
+					break;
+				}
+			}
 		}
+		if (!channelid) channelid = rawChannel;
 
 		let channel = (client.channels.cache.get(channelid) as DiscordChannel); // Validation for this type occurs below
 		if (!channel) return;
 		if (!['text', 'news'].includes(channel.type)) return;
-		if (inServer && channel.guild && channel.guild.id !== this.guild.id) return;
+		if (inServer) {
+			if (!this.guild) return;
+			if (channel.guild && channel.guild.id !== this.guild.id) return;
+		}
 		if (authorVisibilitity) {
 			let guildMember = channel.guild.member(this.author.id);
 			if (!guildMember) return; // User not in guild and cannot see channel
@@ -167,10 +179,33 @@ export abstract class BaseCommand {
 	/**
 	 * Get a server the bot can access
 	 * Mostly serves as a wrapper for commands that cannot access the discord client
-	 * @param id Discord guildid aka serverid
+	 * @param server - The server name or id to get
+	 * @param inServer - If this is true, the author of the command must be in the server to get it
+	 * @param allowName - If this is true, this method will attempt to get the server by its name. This can be risky since servers can share names.
 	 */
-	protected getServer(id: string): Discord.Guild | undefined {
-		return client.guilds.cache.get(id);
+	protected async getServer(rawServer: string, inServer: boolean = true, allowName: boolean = false): Promise<Discord.Guild | undefined> {
+		if (!toID(rawServer)) return;
+		rawServer = rawServer.trim();
+
+		if (!/\d{16}/.test(rawServer) && allowName) {
+			// Server name
+			for (let [k, v] of client.guilds.cache) {
+				if (toID(v.name) === toID(rawServer)) {
+					rawServer = k;
+					break;
+				}
+			}
+		}
+
+		const server = client.guilds.cache.get(rawServer);
+		if (!server) return;
+
+		if (inServer) {
+			await server.members.fetch();
+			if (!server.members.cache.has(this.author.id)) return;
+		}
+
+		return server;
 	}
 
 	protected verifyData = verifyData;
@@ -215,7 +250,7 @@ export abstract class BaseCommand {
 	 * @param msg The message to send
 	 */
 	protected async sendLog(msg: string | Discord.MessageEmbed): Promise<Discord.Message | void> {
-		if (!toID(msg)) return;
+		if (!toID(msg) || !this.guild) return;
 		const channel = this.getChannel((await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [this.guild.id])).rows[0].logchannel, false, false);
 		if (!channel) return;
 		channel.send(msg);
@@ -288,7 +323,7 @@ export abstract class ReactionPageTurner {
 	protected async initalize(messageOrChannel: Discord.Message | DiscordChannel): Promise<void> {
 		if (this.message) throw new Error(`Reaction Page Turner already initalized.`);
 		if (!(messageOrChannel instanceof Discord.Message)) {
-			this.message = await messageOrChannel.send(this.buildPage(messageOrChannel.guild));
+			this.message = await messageOrChannel.send(this.buildPage());
 		} else {
 			this.message = messageOrChannel;
 		}
@@ -311,9 +346,8 @@ export abstract class ReactionPageTurner {
 
 	/**
 	 * This method builds each page of the page turner.
-	 * @param guild Opional guild used only during initalization.
 	 */
-	protected abstract buildPage(guild?: Discord.Guild): Discord.MessageEmbed;
+	protected abstract buildPage(): Discord.MessageEmbed;
 
 	/**
 	 * Important note: Be sure to filter out reactions from the bot itself.

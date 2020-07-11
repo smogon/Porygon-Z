@@ -12,12 +12,14 @@ class ActivityPage extends ReactionPageTurner {
 	private rowsPerPage: number;
 	private data: any[];
 	private granularity: string;
+	private guild: Discord.Guild;
 	// user/channel is for linecounts and the buildSpecific methods.
 	// booleans are for leaderboard and the buildGeneral methods.
 	private target: Discord.User | DiscordChannel | boolean;
 	private readonly printVersions: {[key: string]: string[]} = {'day': ['Todays ', 'Daily '], 'week': ['This Weeks ', 'Weekly '], 'month': ['This Months ', 'Monthly '], 'alltime': ['All Time ', 'All Time ']};
-	constructor(channel: DiscordChannel, user: Discord.User, data: any[], granularity: string, target: Discord.User | DiscordChannel | boolean, options?: Discord.ReactionCollectorOptions) {
+	constructor(channel: DiscordChannel, user: Discord.User, guild: Discord.Guild, data: any[], granularity: string, target: Discord.User | DiscordChannel | boolean, options?: Discord.ReactionCollectorOptions) {
 		super(channel, user, options);
+		this.guild = guild;
 		this.data = data;
 		this.granularity = granularity;
 		this.lastPage = Math.ceil(this.data.length / 10);
@@ -27,20 +29,15 @@ class ActivityPage extends ReactionPageTurner {
 		this.initalize(channel);
 	}
 
-	protected buildPage(guild?: Discord.Guild): Discord.MessageEmbed {
-		if (!guild) {
-			if (!this.message || !this.message.guild) throw new Error(`Cannot find guild id in reaction page turner.`);
-			guild = this.message.guild;
-		}
-
+	protected buildPage(): Discord.MessageEmbed {
 		if (!this.target || this.target === true) {
-			return this.buildGeneral(guild);
+			return this.buildGeneral();
 		} else {
-			return this.buildSpecific(guild);
+			return this.buildSpecific();
 		}
 	}
 
-	private buildSpecific(guild: Discord.Guild): Discord.MessageEmbed {
+	private buildSpecific(): Discord.MessageEmbed {
 		let description = '';
 		if (typeof this.target === 'boolean') throw new Error('No user/channel provided for a specific activity page turner.');
 		if (this.target instanceof Discord.User) {
@@ -53,8 +50,8 @@ class ActivityPage extends ReactionPageTurner {
 			color: 0x6194fd,
 			description: `${this.printVersions[this.granularity][1] || ''} ${description}`,
 			author: {
-				name: guild.name,
-				icon_url: guild.iconURL() || '',
+				name: this.guild.name,
+				icon_url: this.guild.iconURL() || '',
 			},
 			timestamp: Date.now(),
 			footer: {
@@ -102,7 +99,7 @@ class ActivityPage extends ReactionPageTurner {
 		return new Discord.MessageEmbed(embed);
 	}
 
-	private buildGeneral(guild: Discord.Guild): Discord.MessageEmbed {
+	private buildGeneral(): Discord.MessageEmbed {
 		if (typeof this.target !== 'boolean') throw new Error(`Target user/channel passed to general activity page turner.`);
 		let description = this.target ? `Most Active Channels` : `Chatter Leaderboard`;
 
@@ -110,8 +107,8 @@ class ActivityPage extends ReactionPageTurner {
 			color: 0x6194fd,
 			description: `${this.printVersions[this.granularity][0] || ''} ${description}`,
 			author: {
-				name: guild.name,
-				icon_url: guild.iconURL() || '',
+				name: this.guild.name,
+				icon_url: this.guild.iconURL() || '',
 			},
 			timestamp: Date.now(),
 			footer: {
@@ -160,6 +157,10 @@ export class Leaderboard extends BaseCommand {
 	}
 
 	protected async fetchData(granularity: string): Promise<any[]> {
+		if (!this.guild) {
+			// This should never happen because this method is only called after this.guild is checked
+			throw new Error(`Unable to find guild when fetching data for leaderboard.`);
+		}
 		let args = [this.guild.id];
 		let query = `SELECT u.name, u.discriminator, SUM(l.lines) FROM lines l INNER JOIN users u ON u.userid = l.userid WHERE l.serverid = $1`;
 		const d = new Date();
@@ -192,17 +193,25 @@ export class Leaderboard extends BaseCommand {
 	}
 
 	public async execute() {
+		let [granularity, server] = this.target.trim().split(',').map(v => v.trim());
+		if (!this.guild) {
+			this.guild = await this.getServer(server, true, true) || null;
+			if (!this.guild) {
+				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				return this.sendCode(Leaderboard.help());
+			}
+		}
+
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
-		let granularity = this.target.trim();
 		if (!toID(granularity)) granularity = 'alltime';
-		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(Leaderboard.help());
+		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(Leaderboard.help());
 
 		let res = await this.fetchData(granularity);
-		new ActivityPage(this.channel, this.author, res, granularity, false);
+		new ActivityPage(this.channel, this.author, this.guild, res, granularity, false);
 	}
 
 	public static help(): string {
-		return `${prefix}leaderboard [day | week | month | alltime] - Gets the public chat leaderboard for the selected timeframe. Timeframe defaults to alltime.\n` +
+		return `${prefix}leaderboard [day | week | month | alltime], [server] - Gets the public chat leaderboard for the selected timeframe. Timeframe defaults to alltime.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${aliases.leaderboard.map(a => `${prefix}${a} `)}\n` +
 			`Related Commands: channelleaderboard, linecount, channellinecount`;
@@ -215,6 +224,10 @@ export class ChannelLeaderboard extends BaseCommand {
 	}
 
 	protected async fetchData(granularity: string): Promise<any[]> {
+		if (!this.guild) {
+			// This should never happen because this method is only called after this.guild is checked
+			throw new Error(`Unable to find guild when fetching data for channel leaderboard.`);
+		}
 		let args = [this.guild.id];
 		let query = `SELECT ch.channelname, SUM(cl.lines) FROM channellines cl INNER JOIN channels ch ON cl.channelid = ch.channelid`;
 		query += ` INNER JOIN servers s ON ch.serverid = s.serverid WHERE ch.serverid = $1`;
@@ -248,17 +261,25 @@ export class ChannelLeaderboard extends BaseCommand {
 	}
 
 	public async execute() {
+		let [granularity, server] = this.target.trim().split(',').map(v => v.trim());
+		if (!this.guild) {
+			this.guild = await this.getServer(server, true, true) || null;
+			if (!this.guild) {
+				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				return this.sendCode(ChannelLeaderboard.help());
+			}
+		}
+
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
-		let granularity = this.target.trim();
 		if (!toID(granularity)) granularity = 'alltime';
-		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(ChannelLeaderboard.help());
+		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(ChannelLeaderboard.help());
 
 		let res = await this.fetchData(granularity);
-		new ActivityPage(this.channel, this.author, res, granularity, true);
+		new ActivityPage(this.channel, this.author, this.guild, res, granularity, true);
 	}
 
 	public static help(): string {
-		return `${prefix}channelleaderboard [day | week | month | alltime] - Gets the activity leaderboard for public channels in the selected timeframe. Timeframe defaults to alltime.\n` +
+		return `${prefix}channelleaderboard [day | week | month | alltime], [server] - Gets the activity leaderboard for public channels in the selected timeframe. Timeframe defaults to alltime.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${aliases.channelleaderboard.map(a => `${prefix}${a} `)}\n` +
 			`Related Commands: leaderboard, linecount, channellinecount`;
@@ -271,6 +292,10 @@ export class Linecount extends BaseCommand {
 	}
 
 	protected async fetchData(granularity: string, id?: string): Promise<any[]> {
+		if (!this.guild) {
+			// This should never happen because this method is only called after this.guild is checked
+			throw new Error(`Unable to find guild when fetching data for user linecount.`);
+		}
 		let key = '';
 
 		switch (granularity) {
@@ -299,20 +324,28 @@ export class Linecount extends BaseCommand {
 	}
 
 	public async execute() {
+		let [rawTarget, granularity, server] = this.target.trim().split(',').map(v => v.trim());
+		if (!this.guild) {
+			this.guild = await this.getServer(server, true, true) || null;
+			if (!this.guild) {
+				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				return this.reply(Linecount.help());
+			}
+		}
+
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
-		let [rawTarget, granularity] = this.target.split(',').map(v => v.trim());
 		let target = this.getUser(rawTarget);
-		if (!target) return this.reply(Linecount.help());
+		if (!target) return this.sendCode(Linecount.help());
 
 		if (!toID(granularity)) granularity = 'day';
-		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(Linecount.help());
+		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(Linecount.help());
 
 		let res = await this.fetchData(granularity, target.id);
-		new ActivityPage(this.channel, this.author, res, granularity, target);
+		new ActivityPage(this.channel, this.author, this.guild, res, granularity, target);
 	}
 
 	public static help(): string {
-		return `${prefix}linecount @user, [day | week | month | alltime] - Gets a user's public activity in the selected timeframe. Timeframe defaults to day.\n` +
+		return `${prefix}linecount @user, [day | week | month | alltime], [server] - Gets a user's public activity in the selected timeframe. Timeframe defaults to day.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${aliases.linecount.map(a => `${prefix}${a} `)}\n` +
 			`Related Commands: leaderboard, channelleaderboard, channellinecount`;
@@ -325,6 +358,10 @@ export class ChannelLinecount extends BaseCommand {
 	}
 
 	protected async fetchData(granularity: string, id?: string): Promise<any[]> {
+		if (!this.guild) {
+			// This should never happen because this method is only called after this.guild is checked
+			throw new Error(`Unable to find guild when fetching data for channel linecount.`);
+		}
 		let key = '';
 
 		switch (granularity) {
@@ -354,20 +391,28 @@ export class ChannelLinecount extends BaseCommand {
 	}
 
 	public async execute() {
+		let [rawTarget, granularity, server] = this.target.trim().split(',').map(v => v.trim());
+		if (!this.guild) {
+			this.guild = await this.getServer(server, true, true) || null;
+			if (!this.guild) {
+				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				return this.sendCode(ChannelLinecount.help());
+			}
+		}
+
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
-		let [rawTarget, granularity] = this.target.split(',').map(v => v.trim());
-		let target = this.getChannel(rawTarget);
+		let target = this.getChannel(rawTarget, true, true, true);
 		if (!target) return this.reply(ChannelLinecount.help());
 
 		if (!toID(granularity)) granularity = 'day';
-		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.reply(ChannelLinecount.help());
+		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(ChannelLinecount.help());
 
 		let res = await this.fetchData(granularity, target.id);
-		new ActivityPage(this.channel, this.author, res, granularity, target);
+		new ActivityPage(this.channel, this.author, this.guild, res, granularity, target);
 	}
 
 	public static help(): string {
-		return `${prefix}channellinecount #channel, [day | week | month | alltime] - Gets a public channel's activity in the selected timeframe. Timeframe defaults to day.\n` +
+		return `${prefix}channellinecount #channel, [day | week | month | alltime], [server] - Gets a public channel's activity in the selected timeframe. Timeframe defaults to day.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${aliases.channellinecount.map(a => `${prefix}${a} `)}\n` +
 			`Related Commands: leaderboard, channelleaderboard, linecount`;

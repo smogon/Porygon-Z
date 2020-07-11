@@ -73,23 +73,25 @@ setTimeout(() => {
 class BoostPage extends ReactionPageTurner {
 	protected lastPage: number;
 	private rowsPerPage: number;
+	private guild: Discord.Guild;
 	private data: any[];
-	constructor(channel: DiscordChannel, user: Discord.User, data: any[]) {
+	constructor(channel: DiscordChannel, user: Discord.User, guild: Discord.Guild, data: any[]) {
 		super(channel, user);
+		this.guild = guild;
 		this.data = data;
-		this.lastPage = Math.ceil(this.data.length / 10);
+		this.lastPage = Math.ceil(this.data.length / 10) || 1;
 		this.rowsPerPage = 10;
 
 		this.initalize(channel);
 	}
 
-	buildPage(guild: Discord.Guild): Discord.MessageEmbed {
+	buildPage(): Discord.MessageEmbed {
 		let embed: Discord.MessageEmbedOptions = {
 			color: 0xf47fff,
 			description: `Current Nitro Boosters`,
 			author: {
-				name: guild.name,
-				icon_url: guild.iconURL() || '',
+				name: this.guild.name,
+				icon_url: this.guild.iconURL() || '',
 			},
 			timestamp: Date.now(),
 			footer: {
@@ -125,6 +127,7 @@ export class Boosters extends BaseCommand {
 	}
 
 	public async execute() {
+		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
 		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply(`Access Denied.`);
 
 		let res = await pgPool.query('SELECT u.name, u.discriminator, ul.boosting ' +
@@ -134,7 +137,7 @@ export class Boosters extends BaseCommand {
 			'WHERE s.serverid = $1 AND ul.boosting IS NOT NULL ' +
 			'ORDER BY ul.boosting', [this.guild.id]);
 
-		new BoostPage(this.channel, this.author, res.rows);
+		new BoostPage(this.channel, this.author, this.guild, res.rows);
 	}
 
 	public static help(): string {

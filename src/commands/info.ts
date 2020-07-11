@@ -20,7 +20,7 @@ class HelpPage extends ReactionPageTurner {
 		this.initalize(channel);
 	}
 
-	buildPage(guild: Discord.Guild): Discord.MessageEmbed {
+	buildPage(): Discord.MessageEmbed {
 		let embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
 			description: `Help for All Commands`,
