@@ -11,7 +11,6 @@ import fs = require('fs');
 
 import { prefix, ID, toID, pgPool } from './common';
 import { BaseCommand, BaseMonitor, DiscordChannel } from './command_base';
-import { lookup } from 'dns';
 
 interface Constructable<T> {
 	new(message: Discord.Message): T;

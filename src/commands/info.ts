@@ -154,3 +154,18 @@ export class Github extends BaseCommand {
 			`Aliases: None`;
 	}
 }
+
+export class Wifi extends BaseCommand {
+	constructor(message: Discord.Message) {
+		super(message);
+	}
+
+	public async execute() {
+		this.reply(`You will have better luck trying to trade in the trading channel in our WiFi discord: https://discord.gg/pefHjD7`);
+	}
+
+	public static help(): string {
+		return `${prefix}wifi - Link to the smogon wifi discord's trading channel.\n` +
+			`Aliases: None`;
+	}
+}
