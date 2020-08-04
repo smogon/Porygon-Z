@@ -33,6 +33,12 @@ interface IDatabaseInsert {
 // Ensure database properly setup
 require('./database_version_control');
 
+// Shutdown helper
+let lockdown = false;
+export function shutdown() {
+	lockdown = true;
+}
+
 // Database cache sets
 const users = new Set<string>();
 const servers =  new Set<string>();
@@ -130,15 +136,13 @@ for (const file of monitorFiles) {
 	}
 }
 
+// Load other client events
+require('./events');
+
 client.on('ready', () => {
 	if (!client || !client.user) throw new Error(`Bot not logged in and ready event triggered.`); // Should never happen
 	console.log(`Logged in as ${client.user.tag}.`);
 });
-
-let lockdown = false;
-export function shutdown() {
-	lockdown = true;
-}
 
 // Fires when we get a new message from discord. We ignore messages that aren't commands or are from a bot.
 client.on('message', async msg => {
