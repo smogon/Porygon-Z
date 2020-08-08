@@ -14,7 +14,7 @@ class HelpPage extends ReactionPageTurner {
 	constructor(channel: DiscordChannel, user: Discord.User, data: {[key: string]: string}[]) {
 		super(channel, user);
 		this.data = data;
-		this.lastPage = Math.ceil(this.data.length / 10);
+		this.lastPage = Math.ceil(this.data.length / 5);
 		this.rowsPerPage = 5;
 
 		this.initalize(channel);

@@ -54,7 +54,7 @@ export async function verifyData(data: Discord.Message | IDatabaseInsert) {
 		if (!worker) worker = await pgPool.connect();
 		let res = await worker.query('SELECT * FROM servers WHERE serverid = $1', [data.guild.id]);
 		if (!res.rows.length) {
-			await worker.query('INSERT INTO servers (serverid, servername, logchannel) VALUES ($1, $2, $3)', [data.guild.id, data.guild.name, null]);
+			await worker.query('INSERT INTO servers (serverid, servername, logchannel, sticky) VALUES ($1, $2, $3, $4)', [data.guild.id, data.guild.name, null, []]);
 		}
 		servers.add(data.guild.id);
 	}
@@ -89,7 +89,7 @@ export async function verifyData(data: Discord.Message | IDatabaseInsert) {
 			if (!worker) worker = await pgPool.connect();
 			let res = await worker.query('SELECT * FROM userlist WHERE serverid = $1 AND userid = $2', [data.guild.id, data.author.id]);
 			if (!res.rows.length) {
-				await worker.query('INSERT INTO userlist (serverid, userid, boosting) VALUES ($1, $2, $3)', [data.guild.id, data.author.id, null]);
+				await worker.query('INSERT INTO userlist (serverid, userid, boosting, sticky) VALUES ($1, $2, $3, $4)', [data.guild.id, data.author.id, null, []]);
 			}
 			userlist.add(data.guild.id + ',' + data.author.id);
 		}

@@ -24,49 +24,24 @@ async function fetchAuditLog(type: Discord.GuildAuditLogsAction, guild: Discord.
 		type: type,
 	})).entries.first();
 
-	if (!log) {
-		console.log(`[DEBUG] Had permission but found no log for type ${type} on guild: ${guild}.`);
-		return;
-	}
+	if (!log) return;
 
 	if (Date.now() - log.createdTimestamp > 2000) return; // Old entry, ignore
 
 	return log;
 }
 
-client.on('messageUpdate', async (oldMessage: Discord.Message | Discord.PartialMessage, newMessage: Discord.Message | Discord.PartialMessage) => {
-	oldMessage = (oldMessage as Discord.Message);
-	newMessage = (newMessage as Discord.Message);
-	if (!newMessage.guild) return; // Drop PM edits
-	if (newMessage.author.bot) return; // Ignore bot edits
-	const logChannel = await getLogChannel(newMessage.guild);
-	if (!logChannel) return; // Nowhere to log to
+async function canAssignRole(user: Discord.GuildMember, role: Discord.Role): Promise<boolean> {
+	let guild = user.guild;
+	if (user.guild.id !== guild.id || role.guild.id !== guild.id) throw new Error(`Guild missmatch when re-assigning sticky role`);
 
-	let embed: Discord.MessageEmbedOptions = {
-		color: 0x6194fd,
-		description: `Message Edited`,
-		author: {
-			name: newMessage.author.tag,
-			icon_url: newMessage.author.displayAvatarURL(),
-		},
-		fields: [
-			{
-				name: `Channel`,
-				value: `<#${newMessage.channel.id}>`,
-			},
-			{
-				name: `Old Content`,
-				value: oldMessage.content,
-			},
-			{
-				name: `New Content`,
-				value: newMessage.content,
-			}],
-		timestamp: Date.now(),
-	}
-
-	logChannel.send({embed: embed});
-});
+	await guild.roles.fetch();
+	const highestRole = [...user.roles.cache.values()].sort((a, b) => {
+		return b.comparePositionTo(a);
+	})[0];
+	if (role.comparePositionTo(highestRole) >= 0) return false;
+	return true;
+}
 
 client.on('messageDelete', async (oldMessage: Discord.Message | Discord.PartialMessage) => {
 	oldMessage = (oldMessage as Discord.Message);
@@ -74,6 +49,9 @@ client.on('messageDelete', async (oldMessage: Discord.Message | Discord.PartialM
 	if (oldMessage.author.bot) return; // Ignore bot message deletes
 	const logChannel = await getLogChannel(oldMessage.guild);
 	if (!logChannel) return; // Nowhere to log to
+
+	const log = await fetchAuditLog('MESSAGE_DELETE', oldMessage.guild);
+	if (!log || log.executor.tag === oldMessage.author.tag) return; // Not a mod delete
 
 	// Don't report for private channels
 	await oldMessage.guild.roles.fetch();
@@ -84,8 +62,6 @@ client.on('messageDelete', async (oldMessage: Discord.Message | Discord.PartialM
 		// There are custom permissions for @everyone on this channel, and @everyone cannot view the channel.
 		return;
 	}
-
-	const log = await fetchAuditLog('MESSAGE_DELETE', oldMessage.guild);
 
 	let embed: Discord.MessageEmbedOptions = {
 		color: 0x6194fd,
@@ -103,16 +79,13 @@ client.on('messageDelete', async (oldMessage: Discord.Message | Discord.PartialM
 				name: `Old Content`,
 				value: oldMessage.content,
 			},
+			{
+				name: 'Deleted by',
+				value: `<@${log.executor.id}>`,
+			},
 		],
 		timestamp: Date.now(),
 	};
-
-	if (log && log.executor.tag !== oldMessage.author.tag && embed.fields) {
-		embed.fields.push({
-			name: 'Deleted by',
-			value: `<@${log.executor.id}>`,
-		});
-	}
 
 	logChannel.send({embed: embed});
 });
@@ -165,7 +138,7 @@ async function banChange(guild: Discord.Guild, user: Discord.User | Discord.Part
 		fields: [
 			{
 				name: user.tag,
-				value: log ? `by <@${log.executor}>` : 'by Unknown',
+				value: log ? `by <@${log.executor.id}>` : 'by Unknown',
 			},
 			{
 				name: 'Reason',
@@ -184,4 +157,95 @@ client.on('guildBanAdd', (guild: Discord.Guild, user: Discord.User | Discord.Par
 
 client.on('guildBanRemove', (guild: Discord.Guild, user: Discord.User | Discord.PartialUser) => {
 	banChange(guild, user, true);
+});
+
+client.on('guildMemberAdd', async (member: Discord.GuildMember | Discord.PartialGuildMember) => {
+	member = (member as Discord.GuildMember);
+	const guild = member.guild;
+	const bot = guild.me ? await guild.members.fetch(guild.me.user) : null;
+	if (!bot) throw new Error(`Bot user not found.`);
+	let worker = await pgPool.connect();
+
+	// try/catch so we don't leave a database worker out of the pool incase of an error
+	try {
+		let res = await worker.query(`SELECT sticky FROM userlist WHERE serverid = $1 AND userid = $2`, [guild.id, member.user.id]);
+		if (!res.rows.length) return; // User was not in database yet, which is OK here. Proably a first time join.
+		const sticky: string[] = res.rows[0].sticky;
+		if (!sticky.length) return; // User rejoined and had 0 sticky roles.
+
+		// Re-assign sticky roles
+		if (!bot.hasPermission('MANAGE_ROLES')) {
+			// Bot can't assign roles due to lack of permissions
+			const channel = await getLogChannel(guild);
+			let msg = `[WARN] Bot tried to assign sticky (persistant) roles to a user joining the server, but lacks the MANAGE_ROLES permission.`;
+			if (channel) channel.send(msg);
+			return;
+		}
+
+		await guild.roles.fetch();
+		for (let roleID of sticky) {
+			const role = guild.roles.cache.get(roleID);
+			if (!role) {
+				// ??? Should never happen
+				throw new Error(`Unable to find sticky role with ID ${roleID} in server ${guild.name} (${guild.id})`);
+			}
+
+			if (!canAssignRole(bot, role)) {
+				// Bot can no longer assign the role.
+				const channel = await getLogChannel(guild);
+				let msg = `[WARN] Bot tried to assign sticky (persistant) role "${role.name}" to a user joining the server, but lacks permissions to assign this specific role.`;
+				if (channel) channel.send(msg);
+				continue;
+			}
+
+			member.roles.add(role, 'Assigning sticky role to returning user');
+		}
+	} catch (e) {
+		worker.release();
+		throw e;
+	}
+});
+
+client.on('roleDelete', async (role: Discord.Role) => {
+	const guild = role.guild;
+	let worker = await pgPool.connect();
+
+	try {
+		let res = await worker.query(`SELECT sticky FROM servers WHERE serverid = $1`, [guild.id]);
+		let sticky = res.rows[0].sticky;
+		if (!sticky.includes(role.id)) return; // Deleted role is not sticky
+
+		// Remove references to sticky role
+		sticky = sticky.splice(sticky.indexOf(role.id), 1);
+		await worker.query(`UPDATE servers SET sticky = $1 WHERE serverid = $2`, [sticky, guild.id]);
+
+		// Remove role from userlist
+		await worker.query(`UPDATE userlist SET sticky = array_remove(sticky, $1) WHERE serverid = $2 AND sticky @> ARRAY[$1]`, [role.id, guild.id]);
+	} catch(e) {
+		worker.release();
+		throw e;
+	}
+});
+
+client.on('guildMemberUpdate', async (oldMember: Discord.GuildMember | Discord.PartialGuildMember, newMember: Discord.GuildMember | Discord.PartialGuildMember) => {
+	oldMember = (oldMember as Discord.GuildMember);
+	newMember = (newMember as Discord.GuildMember);
+	const guild = newMember.guild;
+
+	let addedRoles = [...newMember.roles.cache.values()].filter(role => !oldMember.roles.cache.has(role.id));
+	let removedRoles = [...oldMember.roles.cache.values()].filter(role => !newMember.roles.cache.has(role.id));
+
+	if (!addedRoles.length && !removedRoles.length) return;
+
+	const stickyRoles: string[] = (await pgPool.query('SELECT sticky FROM servers WHERE serverid = $1', [guild.id])).rows[0].sticky;
+	addedRoles = addedRoles.filter(role => stickyRoles.includes(role.id));
+	removedRoles = removedRoles.filter(role => stickyRoles.includes(role.id));
+
+	if (!addedRoles.length && !removedRoles.length) return;
+
+	let userRoles: string[] = (await pgPool.query('SELECT sticky FROM userlist WHERE serverid = $1 AND userid = $2', [guild.id, newMember.user.id])).rows[0].sticky;
+	userRoles = userRoles.filter(roleID => !removedRoles.map(r => r.id).includes(roleID));
+	userRoles = userRoles.concat(addedRoles.map(r => r.id));
+
+	await pgPool.query('UPDATE userlist SET sticky = $1 WHERE serverid = $2 AND userid = $3', [userRoles, guild.id, newMember.user.id]);
 });

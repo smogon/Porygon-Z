@@ -113,13 +113,8 @@ export abstract class BaseCommand {
 			rawChannel = rawChannel.trim();
 			channelid = rawChannel.substring(2, rawChannel.length - 1);
 		} else if (this.guild && allowName) {
-			for (let [k, v] of this.guild.channels.cache) {
-				if (toID(v.name) === toID(rawChannel) && ['news', 'text'].includes(v.type)) {
-					// Validation of visibility handled below
-					channelid = k;
-					break;
-				}
-			}
+			let targetChannel = this.guild.channels.cache.find(channel => toID(channel.name) === toID(rawChannel) && ['news', 'text'].includes(channel.type));
+			if (targetChannel) channelid = targetChannel.id;
 		}
 		if (!channelid) channelid = rawChannel;
 
@@ -189,12 +184,8 @@ export abstract class BaseCommand {
 
 		if (!/\d{16}/.test(rawServer) && allowName) {
 			// Server name
-			for (let [k, v] of client.guilds.cache) {
-				if (toID(v.name) === toID(rawServer)) {
-					rawServer = k;
-					break;
-				}
-			}
+			let targetGuild = client.guilds.cache.find(guild => toID(guild.name) === toID(rawServer));
+			if (targetGuild) rawServer = targetGuild.id;
 		}
 
 		const server = client.guilds.cache.get(rawServer);
@@ -206,6 +197,33 @@ export abstract class BaseCommand {
 		}
 
 		return server;
+	}
+
+	/**
+	 * Get a role from the current or selected server
+	 * @param role - Role id or mention
+	 * @param allowName - Allow fetch roles by name, which can be inconsitant due to roles being allowed to share names.
+	 * @param guild - Guild to use for the search, defaults to current.
+	 */
+	protected async getRole(id: string, allowName: boolean = false, guild?: Discord.Guild) {
+		if (!toID(id)) return;
+		if (!guild && this.guild) guild = this.guild;
+		if (!guild) return;
+		id = id.trim();
+
+		await guild.roles.fetch();
+		if (/<@&\d{18}>/.test(id)) {
+			// Role mention
+			id = id.substring(3, id.length - 1);
+		} else if (!/\d{18}/.test(id) && allowName) {
+			// Role Name
+			let targetRole = guild.roles.cache.find(role => toID(role.name) === toID(id));
+			if (targetRole) id = targetRole.id;
+		}
+
+		const role = guild.roles.cache.get(id);
+		if (!role) return;
+		return role;
 	}
 
 	protected verifyData = verifyData;
