@@ -51,7 +51,7 @@ client.on('messageDelete', async (oldMessage: Discord.Message | Discord.PartialM
 	if (!logChannel) return; // Nowhere to log to
 
 	const log = await fetchAuditLog('MESSAGE_DELETE', oldMessage.guild);
-	if (!log || log.executor.tag === oldMessage.author.tag) return; // Not a mod delete
+	if (!log || log.executor.id === oldMessage.author.id) return; // Not a mod delete
 
 	// Don't report for private channels
 	await oldMessage.guild.roles.fetch();
