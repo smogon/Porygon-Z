@@ -113,7 +113,7 @@ async function stickyStartup() {
 
 		for (let j = 0; j < serverRes.rows.length; j++) {
 			const member = server.members.cache.get(serverRes.rows[j].userid);
-			if (!member) throw new Error(`Unable to find member when performing sticky roles startup. (${guildID}, ${serverRes.rows[j].userid})`);
+			if (!member) continue; // User left the server, but has not re-joined so we can't do anything but wait.
 			// Check which of this member's roles are sticky
 			const roles = [...member.roles.cache.values()].map(r => r.id).filter(r => stickyRoles.includes(r));
 

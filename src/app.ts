@@ -191,25 +191,31 @@ client.on('message', async msg => {
 });
 
 // Setup crash handlers
+let lastErrorReport = 0;
+
 async function onError(err: Error | {} | null | undefined, detail: string = "") {
 	if (!err) return console.error(`Error with no details thrown.`);
-	try {
-		const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
-		if (reportChannel && ['text', 'news'].includes(reportChannel.type)) {
-			let msg = `${detail} ${err}`.trim();
-			if (err instanceof Error) msg += `\nat: ${err.stack}`;
-			(reportChannel as Discord.TextChannel).send(msg);
-		}
-	} catch (e) {}
+	// Don't flood the error report channel, only report 1 error per minute.
+	if (Date.now() > lastErrorReport + (1000 * 60)) {
+		try {
+			const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
+			if (reportChannel && ['text', 'news'].includes(reportChannel.type)) {
+				let msg = `${detail} ${err}`.trim();
+				if (err instanceof Error) msg += `\nat: ${err.stack}`;
+				(reportChannel as Discord.TextChannel).send(msg);
+				lastErrorReport = Date.now();
+			}
+		} catch (e) {}
+	}
 
 	console.error(err);
 }
 
-process.on('uncaughtException', async err => onError);
+process.on('uncaughtException', async err => onError(err));
 
-process.on('unhandledRejection', async err => onError);
+process.on('unhandledRejection', async err => onError(err));
 
-client.on('error', async err => onError);
+client.on('error', async err => onError(err));
 
 // Login
 client.login(process.env.TOKEN);
