@@ -67,6 +67,18 @@ export abstract class BaseCommand {
 	};
 
 	/**
+	 * init allows commands to run code when the bot first starts up.
+	 * This is useful for when we need to perform setup tasks such as
+	 * updating information that may have changed while the bot was
+	 * offline.
+	 *
+	 * This is static so it can be used without construction.
+	 */
+	public static async init(): Promise<void> {
+		// No operation by default, meant to be overriden by command subclasses
+	}
+
+	/**
 	 * Checks if the user has permission to perform an action based on their discord permission flags.
 	 *
 	 * @param permission One of the the discord permission flags or supported custom flags. https://discord.js.org/#/docs/main/stable/class/Permissions?scrollTo=s-FLAGS

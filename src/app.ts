@@ -14,6 +14,8 @@ import { BaseCommand, BaseMonitor, DiscordChannel } from './command_base';
 
 interface Constructable<T> {
 	new(message: Discord.Message): T;
+	help(): string;
+	init(): Promise<void>;
 }
 
 interface ICommandModule {
@@ -139,9 +141,19 @@ for (const file of monitorFiles) {
 // Load other client events
 require('./events');
 
-client.on('ready', () => {
+client.on('ready', async () => {
 	if (!client || !client.user) throw new Error(`Bot not logged in and ready event triggered.`); // Should never happen
 	console.log(`Logged in as ${client.user.tag}.`);
+
+	// Startup events
+
+	await Promise.all([
+		...commands.map(cmd => {
+			// Aliases cannot be initalized so we skip them
+			if (typeof cmd === 'function') cmd.init();
+		}),
+		...monitors.map(monitor => monitor.init()),
+	]);
 });
 
 // Fires when we get a new message from discord. We ignore messages that aren't commands or are from a bot.

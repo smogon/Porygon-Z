@@ -93,48 +93,6 @@ export class Whois extends BaseCommand {
  * Sticky Roles
  */
 
-// Startup script, ensures users who were obtained/lost sticky roles while the bot was offline are accounted for
-async function stickyStartup() {
-	const res = await pgPool.query('SELECT serverid, sticky FROM servers');
-	if (!res.rows.length) return; // No servers?
-
-	for (let i = 0; i < res.rows.length; i++) {
-		const stickyRoles: string[] = res.rows[i].sticky;
-		const guildID = res.rows[i].serverid;
-
-		// Get list of users and their sticky roles
-		const serverRes = await pgPool.query('SELECT userid, sticky FROM userlist WHERE serverid = $1', [guildID]);
-		const server = client.guilds.cache.get(guildID);
-		if (!server) {
-			console.error('ERR NO SERVER FOUND');
-			throw new Error(`Unable to find server when performing sticky roles startup. (${guildID})`);
-		}
-		await server.members.fetch();
-
-		for (let j = 0; j < serverRes.rows.length; j++) {
-			const member = server.members.cache.get(serverRes.rows[j].userid);
-			if (!member) continue; // User left the server, but has not re-joined so we can't do anything but wait.
-			// Check which of this member's roles are sticky
-			const roles = [...member.roles.cache.values()].map(r => r.id).filter(r => stickyRoles.includes(r));
-
-			// Compare member's current sticky roles to the ones in the database. If they match, do nothing.
-			const userStickyRoles: string[] = serverRes.rows[j].sticky;
-			if (!roles.length && userStickyRoles.length) {
-				await pgPool.query('UPDATE userlist SET sticky = $1 WHERE serverid = $2 AND userid = $3', [roles, guildID, member.user.id]);
-				continue;
-			}
-
-			if (roles.every(r => userStickyRoles.includes(r))) continue;
-
-			// Update database with new roles
-			await pgPool.query('UPDATE userlist SET sticky = $1 WHERE serverid = $2 AND userid = $3', [roles, guildID, member.user.id]);
-		}
-	}
-}
-setTimeout(() => {
-	stickyStartup();
-}, 5000);
-
 abstract class StickyCommand extends BaseCommand {
 	async canAssignRole(user: Discord.GuildMember, role: Discord.Role): Promise<boolean> {
 		if (!this.guild || user.guild.id !== this.guild.id || role.guild.id !== this.guild.id) throw new Error(`Guild missmatch in sticky command`);
@@ -239,6 +197,45 @@ export class Sticky extends StickyCommand {
 		return `${prefix}sticky @role - Makes @role sticky, meaning users assigned this role will not be able to have it removed by leaving the server.\n` +
 			`Requires: Manage Roles Permissions\n` +
 			`Aliases: None`;
+	}
+
+	public static async init(): Promise<void> {
+		// This init is for all four sticky role commands
+		const res = await pgPool.query('SELECT serverid, sticky FROM servers');
+		if (!res.rows.length) return; // No servers?
+
+		for (let i = 0; i < res.rows.length; i++) {
+			const stickyRoles: string[] = res.rows[i].sticky;
+			const guildID = res.rows[i].serverid;
+
+			// Get list of users and their sticky roles
+			const serverRes = await pgPool.query('SELECT userid, sticky FROM userlist WHERE serverid = $1', [guildID]);
+			const server = client.guilds.cache.get(guildID);
+			if (!server) {
+				console.error('ERR NO SERVER FOUND');
+				throw new Error(`Unable to find server when performing sticky roles startup. (${guildID})`);
+			}
+			await server.members.fetch();
+
+			for (let j = 0; j < serverRes.rows.length; j++) {
+				const member = server.members.cache.get(serverRes.rows[j].userid);
+				if (!member) continue; // User left the server, but has not re-joined so we can't do anything but wait.
+				// Check which of this member's roles are sticky
+				const roles = [...member.roles.cache.values()].map(r => r.id).filter(r => stickyRoles.includes(r));
+
+				// Compare member's current sticky roles to the ones in the database. If they match, do nothing.
+				const userStickyRoles: string[] = serverRes.rows[j].sticky;
+				if (!roles.length && userStickyRoles.length) {
+					await pgPool.query('UPDATE userlist SET sticky = $1 WHERE serverid = $2 AND userid = $3', [roles, guildID, member.user.id]);
+					continue;
+				}
+
+				if (roles.every(r => userStickyRoles.includes(r))) continue;
+
+				// Update database with new roles
+				await pgPool.query('UPDATE userlist SET sticky = $1 WHERE serverid = $2 AND userid = $3', [roles, guildID, member.user.id]);
+			}
+		}
 	}
 }
 

@@ -65,11 +65,6 @@ async function updateBoosters() {
 	setTimeout(() => updateBoosters(), nextCheck.getTime() - Date.now());
 }
 
-// Update boosters, wait a few seconds so the bot's servers are loaded
-setTimeout(() => {
-	updateBoosters();
-}, 5000);
-
 class BoostPage extends ReactionPageTurner {
 	protected lastPage: number;
 	private rowsPerPage: number;
@@ -144,5 +139,9 @@ export class Boosters extends BaseCommand {
 		return `${prefix}boosters - List this server's current Nitro Boosters and when they started boosting. Results may be out of date by up to 24 hours.\n` +
 			`Requires: Manage Roles Permissions\n` +
 			`Aliases: None`;
+	}
+
+	public static async init(): Promise<void> {
+		updateBoosters();
 	}
 }
