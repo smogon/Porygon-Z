@@ -16,6 +16,7 @@ async function updateBoosters() {
 			return r.userid;
 		});
 		const logChannel = client.channels.cache.get((await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [guildId])).rows[0].logchannel) as DiscordChannel;
+		await guild.members.fetch();
 
 		for (let [id, gm] of guild.members.cache) {
 			if (gm.premiumSince) {
