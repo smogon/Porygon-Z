@@ -77,7 +77,11 @@ client.on('messageDelete', async (oldMessage: Discord.Message | Discord.PartialM
 			},
 			{
 				name: `Old Content`,
-				value: oldMessage.content,
+				value: oldMessage.content || 'No Text',
+			},
+			{
+				name: `Attachments`,
+				value: oldMessage.attachments.map((a) => a.url).join(' ') || 'No Attachments',
 			},
 			{
 				name: 'Deleted by',
