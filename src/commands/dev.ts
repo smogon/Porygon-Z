@@ -3,9 +3,9 @@
  * Basic development related commands, may rename later.
  */
 import Discord = require('discord.js');
-import { shutdown } from '../app';
-import { ID, prefix, toID, pgPool } from '../common';
-import { BaseCommand, DiscordChannel, IAliasList } from '../command_base';
+import {shutdown} from '../app';
+import {prefix, pgPool} from '../common';
+import {BaseCommand, IAliasList} from '../command_base';
 import * as child_process from 'child_process';
 let updateLock = false;
 
@@ -18,11 +18,11 @@ export class Ping extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
+	async execute() {
 		this.reply(`Pong!`);
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}ping - Pings the bot, used to check if the bot's command engine is working.\n` +
 			`Aliases: None`;
 	}
@@ -33,11 +33,12 @@ export class Eval extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
+	async execute() {
 		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
 		let result: any = '';
 		try {
-			// tslint:disable-next-line: no-eval - only owners can use
+			// Eval is (hopefully) secure here as we are permission-checked to owners.
+			// eslint-disable-next-line no-eval
 			result = await eval(this.target);
 			if (result === '') result = '""';
 		} catch (e) {
@@ -52,7 +53,7 @@ export class Query extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
+	async execute() {
 		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
 		pgPool.query(this.target, (err, res) => {
 			if (err) {
@@ -67,13 +68,13 @@ export class Query extends BaseCommand {
 		let table = ``;
 
 		// Add header
-		for (let key in rows[0]) {
+		for (const key in rows[0]) {
 			table += key + ' ';
 		}
 		table += '\n';
 
-		for (let row of rows) {
-			for (let value of Object.values(row)) {
+		for (const row of rows) {
+			for (const value of Object.values(row)) {
 				table += value + ' ';
 			}
 			table += '\n';
@@ -89,7 +90,7 @@ export class Update extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
+	async execute() {
 		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
 		if (updateLock) return this.errorReply(`Another update is already in progress.`);
 		updateLock = true;
@@ -111,7 +112,7 @@ export class Shutdown extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
+	async execute() {
 		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
 		if (updateLock) return this.errorReply(`Wait for the update to finish.`);
 		shutdown();

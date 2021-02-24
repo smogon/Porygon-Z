@@ -4,8 +4,8 @@
  * Also see src/commands/activity.ts
  */
 import Discord = require('discord.js');
-import { ID, prefix, toID, pgPool } from '../common';
-import { BaseMonitor, DiscordChannel } from '../command_base';
+import {pgPool} from '../common';
+import {BaseMonitor} from '../command_base';
 // Number of days to keep lines for before pruning
 const LINE_PRUNE_CUTOFF = 60;
 
@@ -13,10 +13,10 @@ const LINE_PRUNE_CUTOFF = 60;
  * Prunes the lines and channellines tables in the database so that only 60 days of logs are kept
  */
 async function prune() {
-	let cutoff = new Date();
+	const cutoff = new Date();
 	cutoff.setDate(cutoff.getDate() - LINE_PRUNE_CUTOFF);
 	cutoff.setHours(0, 0, 0, 0);
-	let worker = await pgPool.connect();
+	const worker = await pgPool.connect();
 
 	try {
 		await worker.query('BEGIN');
@@ -27,7 +27,7 @@ async function prune() {
 		await worker.query('COMMIT');
 		worker.release();
 
-		let nextPrune = new Date();
+		const nextPrune = new Date();
 		nextPrune.setDate(nextPrune.getDate() + 1);
 		nextPrune.setHours(0, 0, 0, 0);
 		setTimeout(async () => {
@@ -37,7 +37,7 @@ async function prune() {
 		await worker.query('ROLLBACK');
 		worker.release();
 
-		let nextPrune = new Date();
+		const nextPrune = new Date();
 		nextPrune.setDate(nextPrune.getDate() + 1);
 		nextPrune.setHours(0, 0, 0, 0);
 		setTimeout(async () => {
@@ -56,7 +56,7 @@ export class ActivityMonitor extends BaseMonitor {
 		super(message, 'Activity Monitor');
 	}
 
-	public async shouldExecute() {
+	async shouldExecute() {
 		if (!this.guild) {
 			// Should never happen, monitors do not run in PMs
 			throw new Error(`Activity monitor attempted to run outide of a guild.`);
@@ -66,14 +66,14 @@ export class ActivityMonitor extends BaseMonitor {
 		const everyone = this.guild.roles.everyone; // everyone is always a role
 		if (!everyone) throw new Error(`Unable to find the everyone role when logging linecounts.`);
 		const permissions = this.channel.permissionOverwrites.get(everyone.id);
-		if (permissions && permissions.deny.has('VIEW_CHANNEL')) {
+		if (permissions?.deny.has('VIEW_CHANNEL')) {
 			// There are custom permissions for @everyone on this channel, and @everyone cannot view the channel.
 			return false;
 		}
 		return true;
 	}
 
-	public async execute() {
+	async execute() {
 		if (!this.guild) {
 			// Should never happen, monitors do not run in PMs
 			throw new Error(`Activity monitor attempted to run outide of a guild.`);
@@ -88,22 +88,40 @@ export class ActivityMonitor extends BaseMonitor {
 		});
 
 		// Insert user line info
-		let res = await this.worker.query('SELECT * FROM lines WHERE userid = $1 AND logdate = $2 AND serverid = $3', [this.author.id, date, this.guild.id]);
+		let res = await this.worker.query(
+			'SELECT * FROM lines WHERE userid = $1 AND logdate = $2 AND serverid = $3',
+			[this.author.id, date, this.guild.id]
+		);
 		if (!res.rows.length) {
 			// Insert new row
-			await this.worker.query('INSERT INTO lines (userid, logdate, serverid, lines) VALUES ($1, $2, $3, 1)', [this.author.id, date, this.guild.id]);
+			await this.worker.query(
+				'INSERT INTO lines (userid, logdate, serverid, lines) VALUES ($1, $2, $3, 1)',
+				[this.author.id, date, this.guild.id]
+			);
 		} else {
 			// update row
-			await this.worker.query('UPDATE lines SET lines = lines + 1 WHERE userid = $1 AND logdate = $2 AND serverid = $3', [this.author.id, date, this.guild.id]);
+			await this.worker.query(
+				'UPDATE lines SET lines = lines + 1 WHERE userid = $1 AND logdate = $2 AND serverid = $3',
+				[this.author.id, date, this.guild.id]
+			);
 		}
 
-		res = await this.worker.query('SELECT * FROM channellines WHERE channelid = $1 AND logdate = $2', [this.channel.id, date]);
+		res = await this.worker.query(
+			'SELECT * FROM channellines WHERE channelid = $1 AND logdate = $2',
+			[this.channel.id, date]
+		);
 		if (!res.rows.length) {
 			// Insert new row
-			await this.worker.query('INSERT INTO channellines (channelid, logdate, lines) VALUES ($1, $2, 1)', [this.channel.id, date]);
+			await this.worker.query(
+				'INSERT INTO channellines (channelid, logdate, lines) VALUES ($1, $2, 1)',
+				[this.channel.id, date]
+			);
 		} else {
 			// Update row
-			await this.worker.query('UPDATE channellines SET lines = lines + 1 WHERE channelid = $1 AND logdate = $2', [this.channel.id, date]);
+			await this.worker.query(
+				'UPDATE channellines SET lines = lines + 1 WHERE channelid = $1 AND logdate = $2',
+				[this.channel.id, date]
+			);
 		}
 
 		this.worker.release();

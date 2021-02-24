@@ -4,8 +4,13 @@
  * channel activity monitors.
  */
 import Discord = require('discord.js');
-import { ID, prefix, toID, pgPool } from '../common';
-import { BaseCommand, ReactionPageTurner, DiscordChannel, IAliasList } from '../command_base';
+import {prefix, toID, pgPool} from '../common';
+import {BaseCommand, ReactionPageTurner, DiscordChannel, IAliasList} from '../command_base';
+
+const ENGLISH_MONTH_NAMES = [
+	'January', 'February', 'March', 'April', 'May', 'June',
+	'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 class ActivityPage extends ReactionPageTurner {
 	protected lastPage: number;
@@ -16,8 +21,17 @@ class ActivityPage extends ReactionPageTurner {
 	// user/channel is for linecounts and the buildSpecific methods.
 	// booleans are for leaderboard and the buildGeneral methods.
 	private target: Discord.User | DiscordChannel | boolean;
-	private readonly printVersions: {[key: string]: string[]} = {'day': ['Todays ', 'Daily '], 'week': ['This Weeks ', 'Weekly '], 'month': ['This Months ', 'Monthly '], 'alltime': ['All Time ', 'All Time ']};
-	constructor(channel: DiscordChannel, user: Discord.User, guild: Discord.Guild, data: any[], granularity: string, target: Discord.User | DiscordChannel | boolean, options?: Discord.ReactionCollectorOptions) {
+	private readonly printVersions: {[key: string]: string[]} = {
+		day: ["Today's ", 'Daily '],
+		week: ["This Week's ", 'Weekly '],
+		month: ["This Month's ", 'Monthly '],
+		alltime: ['All Time ', 'All Time '],
+	};
+	constructor(
+		channel: DiscordChannel, user: Discord.User, guild: Discord.Guild,
+		data: any[], granularity: string, target: Discord.User | DiscordChannel | boolean,
+		options?: Discord.ReactionCollectorOptions
+	) {
 		super(channel, user, options);
 		this.guild = guild;
 		this.data = data;
@@ -46,7 +60,7 @@ class ActivityPage extends ReactionPageTurner {
 			description = `Linecount for ${this.target.name}`;
 		}
 
-		let embed: Discord.MessageEmbedOptions = {
+		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
 			description: `${this.printVersions[this.granularity][1] || ''} ${description}`,
 			author: {
@@ -56,12 +70,12 @@ class ActivityPage extends ReactionPageTurner {
 			timestamp: Date.now(),
 			footer: {
 				text: `Page ${this.page}/${this.lastPage || 1}`,
-			}
-		}
+			},
+		};
 		embed.fields = []; // To appease typescript, we do this here
 
 		for (let i = (this.page - 1) * this.rowsPerPage; i < (((this.page - 1) * this.rowsPerPage) + this.rowsPerPage); i++) {
-			let row = this.data[i];
+			const row = this.data[i];
 			if (!row) break; // End of data
 
 			let date = '';
@@ -70,8 +84,7 @@ class ActivityPage extends ReactionPageTurner {
 				date = 'All Records';
 				break;
 			case 'month':
-				const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-				date = months[row.time - 1];
+				date = ENGLISH_MONTH_NAMES[row.time - 1];
 				break;
 			case 'week':
 				date = 'Week ' + row.time;
@@ -101,9 +114,9 @@ class ActivityPage extends ReactionPageTurner {
 
 	private buildGeneral(): Discord.MessageEmbed {
 		if (typeof this.target !== 'boolean') throw new Error(`Target user/channel passed to general activity page turner.`);
-		let description = this.target ? `Most Active Channels` : `Chatter Leaderboard`;
+		const description = this.target ? `Most Active Channels` : `Chatter Leaderboard`;
 
-		let embed: Discord.MessageEmbedOptions = {
+		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
 			description: `${this.printVersions[this.granularity][0] || ''} ${description}`,
 			author: {
@@ -113,12 +126,12 @@ class ActivityPage extends ReactionPageTurner {
 			timestamp: Date.now(),
 			footer: {
 				text: `Page ${this.page}/${this.lastPage || 1}`,
-			}
-		}
+			},
+		};
 		embed.fields = []; // To appease typescript, we do this here
 
 		for (let i = (this.page - 1) * this.rowsPerPage; i < (((this.page - 1) * this.rowsPerPage) + this.rowsPerPage); i++) {
-			let row = this.data[i];
+			const row = this.data[i];
 			if (!row) break; // End of data
 			if (this.target) {
 				embed.fields.push({
@@ -161,7 +174,7 @@ export class Leaderboard extends BaseCommand {
 			// This should never happen because this method is only called after this.guild is checked
 			throw new Error(`Unable to find guild when fetching data for leaderboard.`);
 		}
-		let args = [this.guild.id];
+		const args = [this.guild.id];
 		let query = `SELECT u.name, u.discriminator, SUM(l.lines) FROM lines l INNER JOIN users u ON u.userid = l.userid WHERE l.serverid = $1`;
 		const d = new Date();
 		const dateString = d.toLocaleDateString(undefined, {month: '2-digit', day: '2-digit', year: 'numeric'});
@@ -187,12 +200,12 @@ export class Leaderboard extends BaseCommand {
 		}
 
 		query += ` GROUP BY u.name, u.discriminator ORDER BY SUM(l.lines) desc;`;
-		let res = await pgPool.query(query, args);
+		const res = await pgPool.query(query, args);
 
 		return res.rows;
 	}
 
-	public async execute() {
+	async execute() {
 		let [granularity, server] = this.target.trim().split(',').map(v => v.trim());
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
@@ -206,11 +219,11 @@ export class Leaderboard extends BaseCommand {
 		if (!toID(granularity)) granularity = 'alltime';
 		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(Leaderboard.help());
 
-		let res = await this.fetchData(granularity);
+		const res = await this.fetchData(granularity);
 		new ActivityPage(this.channel, this.author, this.guild, res, granularity, false);
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}leaderboard [day | week | month | alltime], [server] - Gets the public chat leaderboard for the selected timeframe. Timeframe defaults to alltime.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${aliases.leaderboard.map(a => `${prefix}${a} `)}\n` +
@@ -228,7 +241,7 @@ export class ChannelLeaderboard extends BaseCommand {
 			// This should never happen because this method is only called after this.guild is checked
 			throw new Error(`Unable to find guild when fetching data for channel leaderboard.`);
 		}
-		let args = [this.guild.id];
+		const args = [this.guild.id];
 		let query = `SELECT ch.channelname, SUM(cl.lines) FROM channellines cl INNER JOIN channels ch ON cl.channelid = ch.channelid`;
 		query += ` INNER JOIN servers s ON ch.serverid = s.serverid WHERE ch.serverid = $1`;
 		const d = new Date();
@@ -255,12 +268,12 @@ export class ChannelLeaderboard extends BaseCommand {
 		}
 
 		query += ` GROUP BY ch.channelname ORDER BY SUM(cl.lines) desc;`;
-		let res = await pgPool.query(query, args);
+		const res = await pgPool.query(query, args);
 
 		return res.rows;
 	}
 
-	public async execute() {
+	async execute() {
 		let [granularity, server] = this.target.trim().split(',').map(v => v.trim());
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
@@ -274,11 +287,11 @@ export class ChannelLeaderboard extends BaseCommand {
 		if (!toID(granularity)) granularity = 'alltime';
 		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(ChannelLeaderboard.help());
 
-		let res = await this.fetchData(granularity);
+		const res = await this.fetchData(granularity);
 		new ActivityPage(this.channel, this.author, this.guild, res, granularity, true);
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}channelleaderboard [day | week | month | alltime], [server] - Gets the activity leaderboard for public channels in the selected timeframe. Timeframe defaults to alltime.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${aliases.channelleaderboard.map(a => `${prefix}${a} `)}\n` +
@@ -317,13 +330,13 @@ export class Linecount extends BaseCommand {
 
 		let query = `SELECT ${key ? key + ' AS time, ' : ''}SUM(l.lines) FROM lines l WHERE l.serverid = $1 AND l.userid = $2`;
 		if (key) query += ` GROUP BY ${key} ORDER BY ${key} desc;`;
-		let args = [this.guild.id, id];
-		let res = await pgPool.query(query, args);
+		const args = [this.guild.id, id];
+		const res = await pgPool.query(query, args);
 
 		return res.rows;
 	}
 
-	public async execute() {
+	async execute() {
 		let [rawTarget, granularity, server] = this.target.trim().split(',').map(v => v.trim());
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
@@ -334,17 +347,17 @@ export class Linecount extends BaseCommand {
 		}
 
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
-		let target = this.getUser(rawTarget);
+		const target = this.getUser(rawTarget);
 		if (!target) return this.sendCode(Linecount.help());
 
 		if (!toID(granularity)) granularity = 'day';
 		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(Linecount.help());
 
-		let res = await this.fetchData(granularity, target.id);
+		const res = await this.fetchData(granularity, target.id);
 		new ActivityPage(this.channel, this.author, this.guild, res, granularity, target);
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}linecount @user, [day | week | month | alltime], [server] - Gets a user's public activity in the selected timeframe. Timeframe defaults to day.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${aliases.linecount.map(a => `${prefix}${a} `)}\n` +
@@ -384,13 +397,13 @@ export class ChannelLinecount extends BaseCommand {
 		let query = `SELECT ${key ? key + ' AS time, ' : ''}SUM(cl.lines) FROM channellines cl INNER JOIN channels ch ON cl.channelid = ch.channelid`;
 		query += ` WHERE ch.serverid = $1 AND ch.channelid = $2`;
 		if (key) query += ` GROUP BY ${key} ORDER BY ${key} desc;`;
-		let args = [this.guild.id, id];
-		let res = await pgPool.query(query, args);
+		const args = [this.guild.id, id];
+		const res = await pgPool.query(query, args);
 
 		return res.rows;
 	}
 
-	public async execute() {
+	async execute() {
 		let [rawTarget, granularity, server] = this.target.trim().split(',').map(v => v.trim());
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
@@ -401,17 +414,17 @@ export class ChannelLinecount extends BaseCommand {
 		}
 
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
-		let target = this.getChannel(rawTarget, true, true, true);
+		const target = this.getChannel(rawTarget, true, true, true);
 		if (!target) return this.reply(ChannelLinecount.help());
 
 		if (!toID(granularity)) granularity = 'day';
 		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(ChannelLinecount.help());
 
-		let res = await this.fetchData(granularity, target.id);
+		const res = await this.fetchData(granularity, target.id);
 		new ActivityPage(this.channel, this.author, this.guild, res, granularity, target);
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}channellinecount #channel, [day | week | month | alltime], [server] - Gets a public channel's activity in the selected timeframe. Timeframe defaults to day.\n` +
 			`Requires: Kick Members Permissions\n` +
 			`Aliases: ${aliases.channellinecount.map(a => `${prefix}${a} `)}\n` +

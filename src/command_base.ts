@@ -5,9 +5,9 @@
  * execution in general.
  */
 import Discord = require('discord.js');
-import { ID, prefix, toID, pgPool } from './common';
-import { PoolClient } from 'pg';
-import { client, verifyData } from './app';
+import {prefix, toID, pgPool} from './common';
+import {PoolClient} from 'pg';
+import {client, verifyData} from './app';
 
 export type DiscordChannel = Discord.TextChannel | Discord.NewsChannel;
 
@@ -53,7 +53,7 @@ export abstract class BaseCommand {
 	/**
 	 * Execute is the method called first when running a command.
 	 */
-	public abstract async execute(): Promise<Discord.Message | void>;
+	public abstract execute(): Promise<Discord.Message | void>;
 
 	/**
 	 * Help provides a help string containing information on the command
@@ -62,9 +62,9 @@ export abstract class BaseCommand {
 	 *
 	 * It is static so it can be used without construction.
 	 */
-	public static help(): string {
+	static help(): string {
 		return `No help is avaliable for this command.`;
-	};
+	}
 
 	/**
 	 * init allows commands to run code when the bot first starts up.
@@ -74,23 +74,27 @@ export abstract class BaseCommand {
 	 *
 	 * This is static so it can be used without construction.
 	 */
-	public static async init(): Promise<void> {
+	static async init(): Promise<void> {
 		// No operation by default, meant to be overriden by command subclasses
 	}
 
 	/**
 	 * Checks if the user has permission to perform an action based on their discord permission flags.
 	 *
-	 * @param permission One of the the discord permission flags or supported custom flags. https://discord.js.org/#/docs/main/stable/class/Permissions?scrollTo=s-FLAGS
+	 * @param permission One of the the discord permission flags or supported custom flags.
+	 * https://discord.js.org/#/docs/main/stable/class/Permissions?scrollTo=s-FLAGS
 	 * @param user Optional. The user to perform the permission check for. Defaults to the user using the command.
-	 * @param guild Optional. The guild (server) to check the user's permissions in. Defaults to the guild the command was used in.
+	 * @param guild Optional. The guild (server) to check the user's permissions in.
+	 * Defaults to the guild the command was used in.
 	 */
 	protected async can(permission: string, user?: Discord.User, guild?: Discord.Guild): Promise<boolean> {
 		if (!user) user = this.author;
 		if (!guild && this.guild) guild = this.guild;
 		const permissions = Object.keys(Discord.Permissions.FLAGS);
 		const customPermissions = ['EVAL']; // Custom Permissions for Bot Owners
-		if (!permissions.includes(permission) && !customPermissions.includes(permission)) throw new Error(`Unknown permission: ${permission}.`);
+		if (!permissions.includes(permission) && !customPermissions.includes(permission)) {
+			throw new Error(`Unknown permission: ${permission}.`);
+		}
 		// Bot admins bypass all
 		if ((process.env.ADMINS || '').split(',').map(toID).includes(toID(user.id))) return true;
 		if (!guild) return false; // In PMs, all actions return false unless you are a bot admin
@@ -115,9 +119,12 @@ export abstract class BaseCommand {
 	 * @param rawChannel - A channelid, or channel mention
 	 * @param inServer - If the channel must be the in server the command was used in.
 	 * @param authorVisibilitity - If the author of the command must be able to see the channel to fetch it.
-	 * @param allowName - If this is true, the method will attempt to get the channel via matching its name. This can be risky since channels can share names.
+	 * @param allowName - If this is true, the method will attempt to get the channel via matching its name.
+	 * This can be risky since channels can share names.
 	 */
-	protected getChannel(rawChannel: string, inServer: boolean = true, authorVisibilitity: boolean = true, allowName: boolean = false): DiscordChannel | void {
+	protected getChannel(
+		rawChannel: string, inServer = true, authorVisibilitity = true, allowName = false
+	): DiscordChannel | void {
 		if (!toID(rawChannel)) return; // No information
 
 		let channelid = '';
@@ -125,12 +132,13 @@ export abstract class BaseCommand {
 			rawChannel = rawChannel.trim();
 			channelid = rawChannel.substring(2, rawChannel.length - 1);
 		} else if (this.guild && allowName) {
-			let targetChannel = this.guild.channels.cache.find(channel => toID(channel.name) === toID(rawChannel) && ['news', 'text'].includes(channel.type));
+			const targetChannel = this.guild.channels.cache
+				.find(channel => toID(channel.name) === toID(rawChannel) && ['news', 'text'].includes(channel.type));
 			if (targetChannel) channelid = targetChannel.id;
 		}
 		if (!channelid) channelid = rawChannel;
 
-		let channel = (client.channels.cache.get(channelid) as DiscordChannel); // Validation for this type occurs below
+		const channel = (client.channels.cache.get(channelid) as DiscordChannel); // Validation for this type occurs below
 		if (!channel) return;
 		if (!['text', 'news'].includes(channel.type)) return;
 		if (inServer) {
@@ -138,13 +146,16 @@ export abstract class BaseCommand {
 			if (channel.guild && channel.guild.id !== this.guild.id) return;
 		}
 		if (authorVisibilitity) {
-			let guildMember = channel.guild.member(this.author.id);
+			const guildMember = channel.guild.member(this.author.id);
 			if (!guildMember) return; // User not in guild and cannot see channel
-			let permissions = channel.permissionsFor(guildMember);
-			if (!permissions) throw new Error(`Unable to get channel permissions for user. Channel: ${channel.id}, User: ${guildMember.id}`); // Should never happen since we are using a GuildMember
+			const permissions = channel.permissionsFor(guildMember);
+			if (!permissions) {
+				// Should never happen since we are using a GuildMember
+				throw new Error(`Unable to get channel permissions for user. Channel: ${channel.id}, User: ${guildMember.id}`);
+			}
 			if (!permissions.has('VIEW_CHANNEL')) return;
 		}
-		return (channel as DiscordChannel);
+		return (channel);
 	}
 
 	/**
@@ -158,7 +169,7 @@ export abstract class BaseCommand {
 
 		if (/<@!?\d{18}>/.test(rawUser)) {
 			// Mention
-			let startingIndex = rawUser.includes('!') ? 3 : 2;
+			const startingIndex = rawUser.includes('!') ? 3 : 2;
 			userid = rawUser.substring(startingIndex, rawUser.length - 1);
 		} else if (/[^@#:]{1,32}#\d{4}/.test(rawUser)) {
 			// try to extract from a username + discriminator (eg: Name#1111)
@@ -177,9 +188,7 @@ export abstract class BaseCommand {
 	 * @param disriminator Discord discriminator (four numbers after the #)
 	 */
 	private findUser(name: string, disriminator: string): string | undefined {
-		let result = client.users.cache.find(u => {
-			return u.username === name && u.discriminator === disriminator;
-		});
+		const result = client.users.cache.find(u => u.username === name && u.discriminator === disriminator);
 		if (result) return result.id;
 	}
 
@@ -188,15 +197,16 @@ export abstract class BaseCommand {
 	 * Mostly serves as a wrapper for commands that cannot access the discord client
 	 * @param server - The server name or id to get
 	 * @param inServer - If this is true, the author of the command must be in the server to get it
-	 * @param allowName - If this is true, this method will attempt to get the server by its name. This can be risky since servers can share names.
+	 * @param allowName - If this is true, this method will attempt to get the server by its name.
+	 * This can be risky since servers can share names.
 	 */
-	protected async getServer(rawServer: string, inServer: boolean = true, allowName: boolean = false): Promise<Discord.Guild | undefined> {
+	protected async getServer(rawServer: string, inServer = true, allowName = false): Promise<Discord.Guild | undefined> {
 		if (!toID(rawServer)) return;
 		rawServer = rawServer.trim();
 
 		if (!/\d{16}/.test(rawServer) && allowName) {
 			// Server name
-			let targetGuild = client.guilds.cache.find(guild => toID(guild.name) === toID(rawServer));
+			const targetGuild = client.guilds.cache.find(guild => toID(guild.name) === toID(rawServer));
 			if (targetGuild) rawServer = targetGuild.id;
 		}
 
@@ -217,7 +227,7 @@ export abstract class BaseCommand {
 	 * @param allowName - Allow fetch roles by name, which can be inconsitant due to roles being allowed to share names.
 	 * @param guild - Guild to use for the search, defaults to current.
 	 */
-	protected async getRole(id: string, allowName: boolean = false, guild?: Discord.Guild) {
+	protected async getRole(id: string, allowName = false, guild?: Discord.Guild) {
 		if (!toID(id)) return;
 		if (!guild && this.guild) guild = this.guild;
 		if (!guild) return;
@@ -229,7 +239,7 @@ export abstract class BaseCommand {
 			id = id.substring(3, id.length - 1);
 		} else if (!/\d{18}/.test(id) && allowName) {
 			// Role Name
-			let targetRole = guild.roles.cache.find(role => toID(role.name) === toID(id));
+			const targetRole = guild.roles.cache.find(role => toID(role.name) === toID(id));
 			if (targetRole) id = targetRole.id;
 		}
 
@@ -281,16 +291,16 @@ export abstract class BaseCommand {
 	 */
 	protected async sendLog(msg: string | Discord.MessageEmbed): Promise<Discord.Message | void> {
 		if (!toID(msg) || !this.guild) return;
-		const channel = this.getChannel((await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [this.guild.id])).rows[0].logchannel, false, false);
-		if (!channel) return;
-		channel.send(msg);
+		const res = await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [this.guild.id]);
+		const channel = this.getChannel(res.rows[0].logchannel, false, false);
+		if (channel) await channel.send(msg);
 	}
 
 	/**
 	 * Used by app.ts to release a PoolClient in the event
 	 * a command using one crashes
 	 */
-	public releaseWorker(warn: boolean = false): void {
+	releaseWorker(warn = false): void {
 		if (this.worker) {
 			if (warn) console.warn(`Releasing PG worker for ${this.isMonitor ? 'monitor' : 'command'}: ${this.cmd}`);
 			this.worker.release();
@@ -313,7 +323,7 @@ export abstract class BaseMonitor extends BaseCommand {
 		this.isMonitor = true;
 	}
 
-	public abstract async shouldExecute(): Promise<boolean>;
+	public abstract shouldExecute(): Promise<boolean>;
 }
 
 /**
@@ -329,7 +339,11 @@ export abstract class ReactionPageTurner {
 	protected page: number;
 	protected abstract lastPage: number;
 	protected options: Discord.ReactionCollectorOptions;
-	protected constructor(messageOrChannel: Discord.Message | DiscordChannel, user: Discord.User, options?: Discord.ReactionCollectorOptions) {
+	protected constructor(
+		messageOrChannel: Discord.Message | DiscordChannel,
+		user: Discord.User,
+		options?: Discord.ReactionCollectorOptions
+	) {
 		if (!options) {
 			options = {idle: 1000 * 60 * 5};
 		}
@@ -345,7 +359,7 @@ export abstract class ReactionPageTurner {
 
 	/**
 	 * Initalize should be called at the end of the concrete class's contructor.
-	 * It's job is to finish some async work such as sending the initial message
+	 * Its job is to finish some async work such as sending the initial message
 	 * that cannot be done in the constructor.
 	 * @param messageOrChannel
 	 * @param options
@@ -358,19 +372,21 @@ export abstract class ReactionPageTurner {
 			this.message = messageOrChannel;
 		}
 
-		const filter: Discord.CollectorFilter = (reaction, user) => this.targetReactions.includes(reaction.emoji.name) && this.user.id === user.id;
+		const filter: Discord.CollectorFilter = (reaction, user) => (
+			this.targetReactions.includes(reaction.emoji.name) && this.user.id === user.id
+		);
 		this.collector = new Discord.ReactionCollector(this.message, filter, this.options);
 
-		this.collector.on('collect', this.collect.bind(this));
+		this.collector.on('collect', () => void this.collect.bind(this));
 		this.collector.on('end', this.end.bind(this));
 
-		this.initalizeReactions();
+		await this.initalizeReactions();
 	}
 
-	private initalizeReactions(): void {
+	private async initalizeReactions() {
 		if (!this.message) throw new Error(`Message not initalized in page turner reactor.`);
-		for (let react of this.targetReactions) {
-			this.message.react(react);
+		for (const react of this.targetReactions) {
+			await this.message.react(react);
 		}
 	}
 
@@ -387,7 +403,7 @@ export abstract class ReactionPageTurner {
 		await reaction.users.fetch();
 		try {
 			// Try to remove the user's reaction, don't throw if theres an error.
-			reaction.users.remove(this.user);
+			await reaction.users.remove(this.user);
 		} catch (e) {}
 
 		switch (reaction.emoji.name) {
