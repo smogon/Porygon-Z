@@ -18,10 +18,13 @@ interface Constructable<T> {
 	init(): Promise<void>;
 }
 
-interface ICommandModule {
-	[key: string]: Constructable<BaseCommand> | string[];
+interface CommandAliases {
+	[key: string]: string[];
 }
 
+interface ICommandModule {
+	[key: string]: Constructable<BaseCommand> | CommandAliases;
+}
 interface IMonitorModule {
 	[key: string]: Constructable<BaseMonitor>;
 }
