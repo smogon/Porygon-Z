@@ -39,8 +39,6 @@ class ActivityPage extends ReactionPageTurner {
 		this.lastPage = Math.ceil(this.data.length / 10);
 		this.rowsPerPage = 10;
 		this.target = target;
-
-		this.initalize(channel);
 	}
 
 	protected buildPage(): Discord.MessageEmbed {
@@ -220,7 +218,8 @@ export class Leaderboard extends BaseCommand {
 		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(Leaderboard.help());
 
 		const res = await this.fetchData(granularity);
-		new ActivityPage(this.channel, this.author, this.guild, res, granularity, false);
+		const page = new ActivityPage(this.channel, this.author, this.guild, res, granularity, false);
+		await page.initialize(this.channel);
 	}
 
 	static help(): string {
@@ -288,7 +287,8 @@ export class ChannelLeaderboard extends BaseCommand {
 		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(ChannelLeaderboard.help());
 
 		const res = await this.fetchData(granularity);
-		new ActivityPage(this.channel, this.author, this.guild, res, granularity, true);
+		const page = new ActivityPage(this.channel, this.author, this.guild, res, granularity, true);
+		await page.initialize(this.channel);
 	}
 
 	static help(): string {
@@ -354,7 +354,8 @@ export class Linecount extends BaseCommand {
 		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(Linecount.help());
 
 		const res = await this.fetchData(granularity, target.id);
-		new ActivityPage(this.channel, this.author, this.guild, res, granularity, target);
+		const page = new ActivityPage(this.channel, this.author, this.guild, res, granularity, target);
+		await page.initialize(this.channel);
 	}
 
 	static help(): string {
@@ -421,7 +422,8 @@ export class ChannelLinecount extends BaseCommand {
 		if (!['day', 'week', 'month', 'alltime'].includes(granularity)) return this.sendCode(ChannelLinecount.help());
 
 		const res = await this.fetchData(granularity, target.id);
-		new ActivityPage(this.channel, this.author, this.guild, res, granularity, target);
+		const page = new ActivityPage(this.channel, this.author, this.guild, res, granularity, target);
+		await page.initialize(this.channel);
 	}
 
 	static help(): string {

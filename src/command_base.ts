@@ -358,14 +358,13 @@ export abstract class ReactionPageTurner {
 	}
 
 	/**
-	 * Initalize should be called at the end of the concrete class's contructor.
+	 * initialize should be called when the page is to be displayed.
 	 * Its job is to finish some async work such as sending the initial message
 	 * that cannot be done in the constructor.
 	 * @param messageOrChannel
-	 * @param options
 	 */
-	protected async initalize(messageOrChannel: Discord.Message | DiscordChannel): Promise<void> {
-		if (this.message) throw new Error(`Reaction Page Turner already initalized.`);
+	async initialize(messageOrChannel: Discord.Message | DiscordChannel): Promise<void> {
+		if (this.message) throw new Error(`Reaction Page Turner already initialized.`);
 		if (!(messageOrChannel instanceof Discord.Message)) {
 			this.message = await messageOrChannel.send(this.buildPage());
 		} else {
@@ -380,11 +379,11 @@ export abstract class ReactionPageTurner {
 		this.collector.on('collect', () => void this.collect.bind(this));
 		this.collector.on('end', this.end.bind(this));
 
-		await this.initalizeReactions();
+		await this.initializeReactions();
 	}
 
-	private async initalizeReactions() {
-		if (!this.message) throw new Error(`Message not initalized in page turner reactor.`);
+	private async initializeReactions() {
+		if (!this.message) throw new Error(`Message not initialized in page turner reactor.`);
 		for (const react of this.targetReactions) {
 			await this.message.react(react);
 		}
@@ -399,7 +398,7 @@ export abstract class ReactionPageTurner {
 	 * Important note: Be sure to filter out reactions from the bot itself.
 	 */
 	protected async collect(reaction: Discord.MessageReaction, user: Discord.User): Promise<void> {
-		if (!this.message) throw new Error(`Message not initalized in page turner reactor.`);
+		if (!this.message) throw new Error(`Message not initialized in page turner reactor.`);
 		await reaction.users.fetch();
 		try {
 			// Try to remove the user's reaction, don't throw if theres an error.
@@ -431,7 +430,7 @@ export abstract class ReactionPageTurner {
 	}
 
 	protected end(collected: Discord.Collection<string, Discord.MessageReaction>, reason: string): void {
-		if (!this.message) throw new Error(`Message not initalized in page turner reactor.`);
+		if (!this.message) throw new Error(`Message not initialized in page turner reactor.`);
 		// Exists for overwrite options
 	}
 }

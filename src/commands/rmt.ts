@@ -27,8 +27,6 @@ class RaterList extends ReactionPageTurner {
 		this.data = data;
 		this.format = format || null;
 		this.lastPage = Math.ceil(this.data.length / 10);
-
-		this.initalize(channel);
 	}
 
 	buildPage(): Discord.MessageEmbed {
@@ -295,7 +293,8 @@ export class ListRaters extends RmtCommand {
 			`WHERE s.serverid = $1 ` +
 			`ORDER BY tr.format;`, [this.guild.id]);
 
-			new RaterList(this.channel, this.author, this.guild, res.rows);
+			const page = new RaterList(this.channel, this.author, this.guild, res.rows);
+			await page.initialize(this.channel);
 		} else if (channel) {
 			const res = await pgPool.query(`SELECT u.name, u.discriminator, ch.channelname FROM teamraters tr ` +
 			`INNER JOIN users u ON tr.userid = u.userid ` +
@@ -303,14 +302,16 @@ export class ListRaters extends RmtCommand {
 			`WHERE tr.format = $1 AND tr.channelid = $2 ` +
 			`ORDER BY u.name, u.discriminator`, [format, channel.id]);
 
-			new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			const page = new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			await page.initialize(this.channel);
 		} else {
 			const res = await pgPool.query(`SELECT DISTINCT u.name, u.discriminator FROM teamraters tr ` +
 			`INNER JOIN users u ON tr.userid = u.userid ` +
 			`WHERE tr.format = $1 ` +
 			`ORDER BY u.name, u.discriminator`, [format]);
 
-			new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			const page = new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			await page.initialize(this.channel);
 		}
 	}
 

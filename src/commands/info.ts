@@ -16,8 +16,6 @@ class HelpPage extends ReactionPageTurner {
 		this.data = data;
 		this.lastPage = Math.ceil(this.data.length / 5);
 		this.rowsPerPage = 5;
-
-		this.initalize(channel);
 	}
 
 	buildPage(): Discord.MessageEmbed {
@@ -115,7 +113,8 @@ export class Help extends BaseCommand {
 			// Alphabetical sort
 			data.sort((a, b) => a.name.localeCompare(b.name));
 
-			new HelpPage(this.channel, this.author, data);
+			const page = new HelpPage(this.channel, this.author, data);
+			await page.initialize(this.channel);
 		}
 	}
 

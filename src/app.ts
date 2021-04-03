@@ -164,7 +164,7 @@ client.on('ready', () => void (async () => {
 
 	await Promise.all([
 		...commands
-			// Aliases cannot be initalized so we skip them
+			// Aliases cannot be initialized so we skip them
 			.filter(cmd => typeof cmd === 'function')
 			.map(cmd => (cmd as Constructable<BaseCommand>).init()),
 		...monitors.map(monitor => monitor.init()),

@@ -87,8 +87,6 @@ class BoostPage extends ReactionPageTurner {
 		this.data = data;
 		this.lastPage = Math.ceil(this.data.length / 10) || 1;
 		this.rowsPerPage = 10;
-
-		this.initalize(channel);
 	}
 
 	buildPage(): Discord.MessageEmbed {
@@ -145,7 +143,8 @@ export class Boosters extends BaseCommand {
 			'WHERE s.serverid = $1 AND ul.boosting IS NOT NULL ' +
 			'ORDER BY ul.boosting', [this.guild.id]);
 
-		new BoostPage(this.channel, this.author, this.guild, res.rows);
+		const page = new BoostPage(this.channel, this.author, this.guild, res.rows);
+		await page.initialize(this.channel);
 	}
 
 	static help(): string {
