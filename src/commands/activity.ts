@@ -79,20 +79,20 @@ class ActivityPage extends ReactionPageTurner {
 
 			let date = '';
 			switch (this.granularity) {
-				case 'alltime':
-					date = 'All Records';
-					break;
-				case 'month':
-					date = ENGLISH_MONTH_NAMES[row.time - 1];
-					break;
-				case 'week':
-					date = 'Week ' + row.time;
-					break;
-				case 'day':
-					date = row.time.toLocaleDateString(undefined, {dateStyle: 'long'});
-					break;
-				default:
-					throw new Error(`Unsupported granularity "${this.granularity}".`);
+			case 'alltime':
+				date = 'All Records';
+				break;
+			case 'month':
+				date = ENGLISH_MONTH_NAMES[row.time - 1];
+				break;
+			case 'week':
+				date = 'Week ' + row.time;
+				break;
+			case 'day':
+				date = row.time.toLocaleDateString(undefined, {dateStyle: 'long'});
+				break;
+			default:
+				throw new Error(`Unsupported granularity "${this.granularity}".`);
 			}
 
 			embed.fields.push({
@@ -180,23 +180,23 @@ export class Leaderboard extends BaseCommand {
 		const dateString = d.toLocaleDateString(undefined, {month: '2-digit', day: '2-digit', year: 'numeric'});
 
 		switch (granularity) {
-			case 'alltime':
+		case 'alltime':
 			// Do nothing here
-				break;
-			case 'month':
-				query += ' AND EXTRACT(MONTH FROM l.logdate) = $2';
-				args.push('' + (d.getMonth() + 1));
-				break;
-			case 'week':
-				query += ' AND EXTRACT(WEEK FROM l.logdate) = EXTRACT(WEEK FROM CAST($2 AS DATE))';
-				args.push(dateString);
-				break;
-			case 'day':
-				query += ' AND l.logdate = $2';
-				args.push(dateString);
-				break;
-			default:
-				throw new Error(`Unsupported granulity: ${granularity}`);
+			break;
+		case 'month':
+			query += ' AND EXTRACT(MONTH FROM l.logdate) = $2';
+			args.push('' + (d.getMonth() + 1));
+			break;
+		case 'week':
+			query += ' AND EXTRACT(WEEK FROM l.logdate) = EXTRACT(WEEK FROM CAST($2 AS DATE))';
+			args.push(dateString);
+			break;
+		case 'day':
+			query += ' AND l.logdate = $2';
+			args.push(dateString);
+			break;
+		default:
+			throw new Error(`Unsupported granulity: ${granularity}`);
 		}
 
 		query += ' GROUP BY u.name, u.discriminator ORDER BY SUM(l.lines) desc;';
@@ -249,23 +249,23 @@ export class ChannelLeaderboard extends BaseCommand {
 		const dateString = d.toLocaleDateString(undefined, {month: '2-digit', day: '2-digit', year: 'numeric'});
 
 		switch (granularity) {
-			case 'alltime':
+		case 'alltime':
 			// Do nothing here
-				break;
-			case 'month':
-				query += ' AND EXTRACT(MONTH FROM cl.logdate) = $2';
-				args.push('' + (d.getMonth() + 1));
-				break;
-			case 'week':
-				query += ' AND EXTRACT(WEEK FROM cl.logdate) = EXTRACT(WEEK FROM CAST($2 AS DATE))';
-				args.push(dateString);
-				break;
-			case 'day':
-				query += ' AND cl.logdate = $2';
-				args.push(dateString);
-				break;
-			default:
-				throw new Error(`Unsupported granulity: ${granularity}`);
+			break;
+		case 'month':
+			query += ' AND EXTRACT(MONTH FROM cl.logdate) = $2';
+			args.push('' + (d.getMonth() + 1));
+			break;
+		case 'week':
+			query += ' AND EXTRACT(WEEK FROM cl.logdate) = EXTRACT(WEEK FROM CAST($2 AS DATE))';
+			args.push(dateString);
+			break;
+		case 'day':
+			query += ' AND cl.logdate = $2';
+			args.push(dateString);
+			break;
+		default:
+			throw new Error(`Unsupported granulity: ${granularity}`);
 		}
 
 		query += ' GROUP BY ch.channelname ORDER BY SUM(cl.lines) desc;';
@@ -314,20 +314,20 @@ export class Linecount extends BaseCommand {
 		let key = '';
 
 		switch (granularity) {
-			case 'alltime':
+		case 'alltime':
 			// Do nothing here
-				break;
-			case 'month':
-				key = 'EXTRACT(MONTH FROM l.logdate)';
-				break;
-			case 'week':
-				key = 'EXTRACT(WEEK FROM l.logdate)';
-				break;
-			case 'day':
-				key = 'l.logdate';
-				break;
-			default:
-				throw new Error(`Unsupported granulity: ${granularity}`);
+			break;
+		case 'month':
+			key = 'EXTRACT(MONTH FROM l.logdate)';
+			break;
+		case 'week':
+			key = 'EXTRACT(WEEK FROM l.logdate)';
+			break;
+		case 'day':
+			key = 'l.logdate';
+			break;
+		default:
+			throw new Error(`Unsupported granulity: ${granularity}`);
 		}
 
 		let query = `SELECT ${key ? key + ' AS time, ' : ''}SUM(l.lines) FROM lines l WHERE l.serverid = $1 AND l.userid = $2`;
@@ -381,20 +381,20 @@ export class ChannelLinecount extends BaseCommand {
 		let key = '';
 
 		switch (granularity) {
-			case 'alltime':
+		case 'alltime':
 			// Do nothing here
-				break;
-			case 'month':
-				key = 'EXTRACT(MONTH FROM cl.logdate)';
-				break;
-			case 'week':
-				key = 'EXTRACT(WEEK FROM cl.logdate)';
-				break;
-			case 'day':
-				key = 'cl.logdate';
-				break;
-			default:
-				throw new Error(`Unsupported granulity: ${granularity}`);
+			break;
+		case 'month':
+			key = 'EXTRACT(MONTH FROM cl.logdate)';
+			break;
+		case 'week':
+			key = 'EXTRACT(WEEK FROM cl.logdate)';
+			break;
+		case 'day':
+			key = 'cl.logdate';
+			break;
+		default:
+			throw new Error(`Unsupported granulity: ${granularity}`);
 		}
 
 		let query = `SELECT ${key ? key + ' AS time, ' : ''}SUM(cl.lines) FROM channellines cl INNER JOIN channels ch ON cl.channelid = ch.channelid`;

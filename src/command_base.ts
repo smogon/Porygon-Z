@@ -103,9 +103,9 @@ export abstract class BaseCommand {
 		const member = await guild.members.fetch(user);
 
 		switch (permission) {
-			case 'EVAL':
+		case 'EVAL':
 			// Handled above, if we reach here you do not have permission
-				return false;
+			return false;
 			// Add more later, default case not needed
 		}
 
@@ -408,24 +408,24 @@ export abstract class ReactionPageTurner {
 		} catch (e) {}
 
 		switch (reaction.emoji.name) {
-			case '\u{23EE}\u{FE0F}':
-				if (this.page === 1) return;
-				this.page = 1;
-				break;
-			case '\u{25C0}\u{FE0F}':
-				if (this.page === 1) return;
-				this.page--;
-				break;
-			case '\u{25B6}\u{FE0F}':
-				if (this.page === this.lastPage) return;
-				this.page++;
-				break;
-			case '\u{23ED}\u{FE0F}':
-				if (this.page === this.lastPage) return;
-				this.page = this.lastPage;
-				break;
-			default:
-				throw new Error(`Unexpected reaction on page turner: ${reaction.emoji.name}`);
+		case '\u{23EE}\u{FE0F}':
+			if (this.page === 1) return;
+			this.page = 1;
+			break;
+		case '\u{25C0}\u{FE0F}':
+			if (this.page === 1) return;
+			this.page--;
+			break;
+		case '\u{25B6}\u{FE0F}':
+			if (this.page === this.lastPage) return;
+			this.page++;
+			break;
+		case '\u{23ED}\u{FE0F}':
+			if (this.page === this.lastPage) return;
+			this.page = this.lastPage;
+			break;
+		default:
+			throw new Error(`Unexpected reaction on page turner: ${reaction.emoji.name}`);
 		}
 
 		await this.message.edit(this.buildPage());
