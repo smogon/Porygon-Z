@@ -63,7 +63,7 @@ export abstract class BaseCommand {
 	 * It is static so it can be used without construction.
 	 */
 	static help(): string {
-		return `No help is avaliable for this command.`;
+		return 'No help is available for this command.';
 	}
 
 	/**
@@ -103,9 +103,9 @@ export abstract class BaseCommand {
 		const member = await guild.members.fetch(user);
 
 		switch (permission) {
-		case 'EVAL':
+			case 'EVAL':
 			// Handled above, if we reach here you do not have permission
-			return false;
+				return false;
 			// Add more later, default case not needed
 		}
 
@@ -200,7 +200,9 @@ export abstract class BaseCommand {
 	 * @param allowName - If this is true, this method will attempt to get the server by its name.
 	 * This can be risky since servers can share names.
 	 */
-	protected async getServer(rawServer: string, inServer = true, allowName = false): Promise<Discord.Guild | undefined> {
+	protected async getServer(
+		rawServer: string, inServer = true, allowName = false
+	): Promise<Discord.Guild | undefined> {
 		if (!toID(rawServer)) return;
 		rawServer = rawServer.trim();
 
@@ -291,7 +293,7 @@ export abstract class BaseCommand {
 	 */
 	protected async sendLog(msg: string | Discord.MessageEmbed): Promise<Discord.Message | void> {
 		if (!toID(msg) || !this.guild) return;
-		const res = await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [this.guild.id]);
+		const res = await pgPool.query('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
 		const channel = this.getChannel(res.rows[0].logchannel, false, false);
 		if (channel) await channel.send(msg);
 	}
@@ -364,7 +366,7 @@ export abstract class ReactionPageTurner {
 	 * @param messageOrChannel
 	 */
 	async initialize(messageOrChannel: Discord.Message | DiscordChannel): Promise<void> {
-		if (this.message) throw new Error(`Reaction Page Turner already initialized.`);
+		if (this.message) throw new Error('Reaction Page Turner already initialized.');
 		if (!(messageOrChannel instanceof Discord.Message)) {
 			this.message = await messageOrChannel.send(this.buildPage());
 		} else {
@@ -383,7 +385,7 @@ export abstract class ReactionPageTurner {
 	}
 
 	private async initializeReactions() {
-		if (!this.message) throw new Error(`Message not initialized in page turner reactor.`);
+		if (!this.message) throw new Error('Message not initialized in page turner reactor.');
 		for (const react of this.targetReactions) {
 			await this.message.react(react);
 		}
@@ -397,8 +399,8 @@ export abstract class ReactionPageTurner {
 	/**
 	 * Important note: Be sure to filter out reactions from the bot itself.
 	 */
-	protected async collect(reaction: Discord.MessageReaction, user: Discord.User): Promise<void> {
-		if (!this.message) throw new Error(`Message not initialized in page turner reactor.`);
+	protected async collect(reaction: Discord.MessageReaction): Promise<void> {
+		if (!this.message) throw new Error('Message not initialized in page turner reactor.');
 		await reaction.users.fetch();
 		try {
 			// Try to remove the user's reaction, don't throw if theres an error.
@@ -406,31 +408,31 @@ export abstract class ReactionPageTurner {
 		} catch (e) {}
 
 		switch (reaction.emoji.name) {
-		case '\u{23EE}\u{FE0F}':
-			if (this.page === 1) return;
-			this.page = 1;
-			break;
-		case '\u{25C0}\u{FE0F}':
-			if (this.page === 1) return;
-			this.page--;
-			break;
-		case '\u{25B6}\u{FE0F}':
-			if (this.page === this.lastPage) return;
-			this.page++;
-			break;
-		case '\u{23ED}\u{FE0F}':
-			if (this.page === this.lastPage) return;
-			this.page = this.lastPage;
-			break;
-		default:
-			throw new Error(`Unexpected reaction on page turner: ${reaction.emoji.name}`);
+			case '\u{23EE}\u{FE0F}':
+				if (this.page === 1) return;
+				this.page = 1;
+				break;
+			case '\u{25C0}\u{FE0F}':
+				if (this.page === 1) return;
+				this.page--;
+				break;
+			case '\u{25B6}\u{FE0F}':
+				if (this.page === this.lastPage) return;
+				this.page++;
+				break;
+			case '\u{23ED}\u{FE0F}':
+				if (this.page === this.lastPage) return;
+				this.page = this.lastPage;
+				break;
+			default:
+				throw new Error(`Unexpected reaction on page turner: ${reaction.emoji.name}`);
 		}
 
 		await this.message.edit(this.buildPage());
 	}
 
-	protected end(collected: Discord.Collection<string, Discord.MessageReaction>, reason: string): void {
-		if (!this.message) throw new Error(`Message not initialized in page turner reactor.`);
+	protected end(): void {
+		if (!this.message) throw new Error('Message not initialized in page turner reactor.');
 		// Exists for overwrite options
 	}
 }

@@ -22,6 +22,7 @@ export class TeamRatingMonitor extends BaseMonitor {
 		this.format = '';
 		this.teamPasteRegexp = /https:\/\/pokepast\.es\/[0-9a-z]{16}/;
 		this.prefixRegexp = /^(?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY)/i;
+		// eslint-disable-next-line max-len
 		this.formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:Nat|National) ?Dex|Doubles|D)? ?(?:[OURNPZ]U|AG|LC|VGC|OM|BS[SD]|(?:Over|Under|Rarely|Never|Zero)used|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything ?Goes|Video ?Game ?Championships?|Battle ?(?:Spot|Stadium) ?(?:Singles?|Doubles?)|1v1|Other ?Meta(?:s|games?)?))\b/i;
 		this.raters = [];
 	}
@@ -80,7 +81,7 @@ export class TeamRatingMonitor extends BaseMonitor {
 			});
 
 			if (!res.rows.length) return false;
-			this.raters = res.rows.map(r => `<@${r.userid}>`);
+			this.raters = res.rows.map(r => `<@${r.userid as string}>`);
 		}
 		const cooldown = cooldowns[this.channel.id]?.[this.format];
 		if (cooldown && cooldown + (1000 * 60 * 60) >= Date.now()) return false;
@@ -90,6 +91,6 @@ export class TeamRatingMonitor extends BaseMonitor {
 	}
 
 	async execute() {
-		this.reply(`Tagging ${this.format} team raters: ${this.raters.join(', ')}`);
+		await this.reply(`Tagging ${this.format} team raters: ${this.raters.join(', ')}`);
 	}
 }

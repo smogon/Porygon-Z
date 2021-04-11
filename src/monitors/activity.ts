@@ -30,8 +30,8 @@ async function prune() {
 		const nextPrune = new Date();
 		nextPrune.setDate(nextPrune.getDate() + 1);
 		nextPrune.setHours(0, 0, 0, 0);
-		setTimeout(async () => {
-			prune();
+		setTimeout(() => {
+			void prune();
 		}, nextPrune.getTime() - Date.now());
 	} catch (e) {
 		await worker.query('ROLLBACK');
@@ -40,8 +40,8 @@ async function prune() {
 		const nextPrune = new Date();
 		nextPrune.setDate(nextPrune.getDate() + 1);
 		nextPrune.setHours(0, 0, 0, 0);
-		setTimeout(async () => {
-			prune();
+		setTimeout(() => {
+			void prune();
 		}, nextPrune.getTime() - Date.now());
 
 		throw e;
@@ -49,7 +49,7 @@ async function prune() {
 }
 
 // Prune any old logs on startup, also starts the timer for pruning
-prune();
+void prune();
 
 export class ActivityMonitor extends BaseMonitor {
 	constructor(message: Discord.Message) {
@@ -59,12 +59,12 @@ export class ActivityMonitor extends BaseMonitor {
 	async shouldExecute() {
 		if (!this.guild) {
 			// Should never happen, monitors do not run in PMs
-			throw new Error(`Activity monitor attempted to run outide of a guild.`);
+			throw new Error('Activity monitor attempted to run outide of a guild.');
 		}
 		// Insert channel line info - only for publicly accessible channels
 		await this.guild.roles.fetch();
 		const everyone = this.guild.roles.everyone; // everyone is always a role
-		if (!everyone) throw new Error(`Unable to find the everyone role when logging linecounts.`);
+		if (!everyone) throw new Error('Unable to find the everyone role when logging linecounts.');
 		const permissions = this.channel.permissionOverwrites.get(everyone.id);
 		if (permissions?.deny.has('VIEW_CHANNEL')) {
 			// There are custom permissions for @everyone on this channel, and @everyone cannot view the channel.
@@ -76,7 +76,7 @@ export class ActivityMonitor extends BaseMonitor {
 	async execute() {
 		if (!this.guild) {
 			// Should never happen, monitors do not run in PMs
-			throw new Error(`Activity monitor attempted to run outide of a guild.`);
+			throw new Error('Activity monitor attempted to run outide of a guild.');
 		}
 		this.worker = await pgPool.connect();
 		const date = new Date(); // Log date

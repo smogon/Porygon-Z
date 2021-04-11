@@ -8,7 +8,7 @@ import {pgPool} from './common';
 import {client} from './app';
 
 async function getLogChannel(guild: Discord.Guild): Promise<Discord.TextChannel | void> {
-	const res = await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [guild.id]);
+	const res = await pgPool.query('SELECT logchannel FROM servers WHERE serverid = $1', [guild.id]);
 	if (!res.rows.length) return;
 	const channel = client.channels.cache.get(res.rows[0].logchannel);
 	if (!channel) return;
@@ -36,7 +36,7 @@ async function fetchAuditLog(
 async function canAssignRole(user: Discord.GuildMember, role: Discord.Role): Promise<boolean> {
 	const guild = user.guild;
 	if (user.guild.id !== guild.id || role.guild.id !== guild.id) {
-		throw new Error(`Guild mismatch when re-assigning sticky role`);
+		throw new Error('Guild mismatch when re-assigning sticky role');
 	}
 
 	await guild.roles.fetch();
@@ -61,7 +61,7 @@ client.on('messageDelete', (oldMsg: Discord.Message | Discord.PartialMessage) =>
 		// Don't report for private channels
 		await oldMessage.guild.roles.fetch();
 		const everyone = oldMessage.guild.roles.everyone; // everyone is always a role
-		if (!everyone) throw new Error(`Unable to find the everyone role in the messageDelete event`);
+		if (!everyone) throw new Error('Unable to find the everyone role in the messageDelete event');
 		const permissions = (oldMessage.channel as Discord.TextChannel | Discord.NewsChannel)
 			.permissionOverwrites
 			.get(everyone.id);
@@ -72,22 +72,22 @@ client.on('messageDelete', (oldMsg: Discord.Message | Discord.PartialMessage) =>
 
 		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
-			description: `Message Deleted`,
+			description: 'Message Deleted',
 			author: {
 				name: oldMessage.author.tag,
 				icon_url: oldMessage.author.displayAvatarURL(),
 			},
 			fields: [
 				{
-					name: `Channel`,
+					name: 'Channel',
 					value: `<#${oldMessage.channel.id}>`,
 				},
 				{
-					name: `Old Content`,
+					name: 'Old Content',
 					value: oldMessage.content || 'No Text',
 				},
 				{
-					name: `Attachments`,
+					name: 'Attachments',
 					value: oldMessage.attachments.map((a) => a.url).join(' ') || 'No Attachments',
 				},
 				{
@@ -114,7 +114,7 @@ client.on('guildMemberRemove', (u: Discord.GuildMember | Discord.PartialGuildMem
 
 		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
-			description: `User kicked`,
+			description: 'User kicked',
 			author: {
 				name: user.user.tag,
 				icon_url: user.user.displayAvatarURL(),
@@ -177,13 +177,13 @@ client.on('guildMemberAdd', (m: Discord.GuildMember | Discord.PartialGuildMember
 	void (async (member: Discord.GuildMember) => {
 		const guild = member.guild;
 		const bot = guild.me ? await guild.members.fetch(guild.me.user) : null;
-		if (!bot) throw new Error(`Bot user not found.`);
+		if (!bot) throw new Error('Bot user not found.');
 		const worker = await pgPool.connect();
 
 		// try/catch so we don't leave a database worker out of the pool incase of an error
 		try {
 			const res = await worker.query(
-				`SELECT sticky FROM userlist WHERE serverid = $1 AND userid = $2`,
+				'SELECT sticky FROM userlist WHERE serverid = $1 AND userid = $2',
 				[guild.id, member.user.id]
 			);
 			if (!res.rows.length) return; // User was not in database yet, which is OK here. Proably a first time join.
@@ -194,7 +194,7 @@ client.on('guildMemberAdd', (m: Discord.GuildMember | Discord.PartialGuildMember
 			if (!bot.hasPermission('MANAGE_ROLES')) {
 			// Bot can't assign roles due to lack of permissions
 				const channel = await getLogChannel(guild);
-				const msg = `[WARN] Bot tried to assign sticky (persistant) roles to a user joining the server, but lacks the MANAGE_ROLES permission.`;
+				const msg = '[WARN] Bot tried to assign sticky (persistant) roles to a user joining the server, but lacks the MANAGE_ROLES permission.';
 				if (channel) await channel.send(msg);
 				return;
 			}
@@ -203,7 +203,7 @@ client.on('guildMemberAdd', (m: Discord.GuildMember | Discord.PartialGuildMember
 			for (const roleID of sticky) {
 				const role = guild.roles.cache.get(roleID);
 				if (!role) {
-				// ??? Should never happen
+					// ??? Should never happen
 					throw new Error(`Unable to find sticky role with ID ${roleID} in server ${guild.name} (${guild.id})`);
 				}
 
@@ -230,17 +230,17 @@ client.on('roleDelete', (r: Discord.Role) => {
 		const worker = await pgPool.connect();
 
 		try {
-			const res = await worker.query(`SELECT sticky FROM servers WHERE serverid = $1`, [guild.id]);
+			const res = await worker.query('SELECT sticky FROM servers WHERE serverid = $1', [guild.id]);
 			let sticky = res.rows[0].sticky;
 			if (!sticky.includes(role.id)) return; // Deleted role is not sticky
 
 			// Remove references to sticky role
 			sticky = sticky.splice(sticky.indexOf(role.id), 1);
-			await worker.query(`UPDATE servers SET sticky = $1 WHERE serverid = $2`, [sticky, guild.id]);
+			await worker.query('UPDATE servers SET sticky = $1 WHERE serverid = $2', [sticky, guild.id]);
 
 			// Remove role from userlist
 			await worker.query(
-				`UPDATE userlist SET sticky = array_remove(sticky, $1) WHERE serverid = $2 AND sticky @> ARRAY[$1]`,
+				'UPDATE userlist SET sticky = array_remove(sticky, $1) WHERE serverid = $2 AND sticky @> ARRAY[$1]',
 				[role.id, guild.id]
 			);
 		} catch (e) {

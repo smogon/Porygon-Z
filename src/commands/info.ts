@@ -21,7 +21,7 @@ class HelpPage extends ReactionPageTurner {
 	buildPage(): Discord.MessageEmbed {
 		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
-			description: `Help for All Commands`,
+			description: 'Help for All Commands',
 			author: {
 				name: 'Help',
 				icon_url: this.user.displayAvatarURL(),
@@ -33,7 +33,8 @@ class HelpPage extends ReactionPageTurner {
 		};
 		embed.fields = []; // To appease typescript, we do this here
 
-		for (let i = (this.page - 1) * this.rowsPerPage; i < (((this.page - 1) * this.rowsPerPage) + this.rowsPerPage); i++) {
+		const start = (this.page - 1) * this.rowsPerPage;
+		for (let i = start; i < start + this.rowsPerPage; i++) {
 			const row = this.data[i];
 			if (!row) break; // No more data
 
@@ -83,7 +84,7 @@ export class Help extends BaseCommand {
 
 			const embed: Discord.MessageEmbedOptions = {
 				color: 0x6194fd,
-				description: `Help for the selected command`,
+				description: 'Help for the selected command',
 				author: {
 					name: 'Help',
 					icon_url: this.author.displayAvatarURL(),
@@ -95,7 +96,7 @@ export class Help extends BaseCommand {
 				timestamp: Date.now(),
 			};
 
-			this.channel.send({embed: embed});
+			await this.channel.send({embed: embed});
 		} else {
 			// General help
 			const data: {[key: string]: string}[] = [];
@@ -130,12 +131,12 @@ export class Directory extends BaseCommand {
 	}
 
 	async execute() {
-		this.reply(`Here's a link to the Smogon Discord Server Directory! https://www.smogon.com/discord/directory`);
+		await this.reply('Here\'s a link to the Smogon Discord Server Directory! https://www.smogon.com/discord/directory');
 	}
 
 	static help(): string {
 		return `${prefix}directory - Get the link for the smogon discord directory.\n` +
-			`Aliases: None`;
+			'Aliases: None';
 	}
 }
 
@@ -145,12 +146,12 @@ export class Github extends BaseCommand {
 	}
 
 	async execute() {
-		this.reply(`Porygon-Z is open source! You can find our github here: https://github.com/smogon/Porygon-Z`);
+		await this.reply('Porygon-Z is open source! You can find our github here: https://github.com/smogon/Porygon-Z');
 	}
 
 	static help(): string {
 		return `${prefix}github - Get this bot's github repository link.\n` +
-			`Aliases: None`;
+			'Aliases: None';
 	}
 }
 
@@ -160,11 +161,11 @@ export class Wifi extends BaseCommand {
 	}
 
 	async execute() {
-		this.reply(`You will have better luck trying to trade in the trading channel in our WiFi discord: https://discord.gg/pefHjD7`);
+		await this.reply('You will have better luck trying to trade in the trading channel in our WiFi discord: https://discord.gg/pefHjD7');
 	}
 
 	static help(): string {
 		return `${prefix}wifi - Link to the smogon wifi discord's trading channel.\n` +
-			`Aliases: None`;
+			'Aliases: None';
 	}
 }

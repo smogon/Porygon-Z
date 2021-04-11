@@ -160,7 +160,7 @@ for (const file of monitorFiles) {
 require('./events');
 
 client.on('ready', () => void (async () => {
-	if (!client?.user) throw new Error(`Bot not logged in and ready event triggered.`); // Should never happen
+	if (!client?.user) throw new Error('Bot not logged in and ready event triggered.'); // Should never happen
 	console.log(`Logged in as ${client.user.tag}.`);
 
 	// Startup events
@@ -199,7 +199,7 @@ client.on('message', (m) => void (async msg => {
 	}
 	// Attempt to run the request command if it exists.
 	// Skip if this is a PM.
-	if (lockdown) return msg.reply(`The bot is restarting soon, please try again in a minute.`);
+	if (lockdown) return msg.reply('The bot is restarting soon, please try again in a minute.');
 
 	const cmdID = toID(msg.content.slice(prefix.length).split(' ')[0]);
 	let command = commands.get(cmdID);
@@ -215,7 +215,7 @@ client.on('message', (m) => void (async msg => {
 	} catch (e) {
 		await onError(e, 'A chat command crashed: ');
 		await msg.channel.send(
-			`\u274C - An error occured while trying to run your command. The error has been logged, and we will fix it soon.`
+			'\u274C - An error occured while trying to run your command. The error has been logged, and we will fix it soon.'
 		);
 	}
 	// Release any workers regardless of the result
@@ -227,8 +227,8 @@ let lastErrorReport = 0;
 
 // Necessary to match process.on('uncaughtException')
 // eslint-disable-next-line @typescript-eslint/ban-types
-async function onError(err: Error | {} | null | undefined, detail = "") {
-	if (!err) return console.error(`Error with no details thrown.`);
+async function onError(err: Error | {} | null | undefined, detail = '') {
+	if (!err) return console.error('Error with no details thrown.');
 	// Don't flood the error report channel, only report 1 error per minute.
 	if (Date.now() > lastErrorReport + (1000 * 60)) {
 		try {

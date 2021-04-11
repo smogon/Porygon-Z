@@ -37,8 +37,8 @@ export class Whois extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
-		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply(`Access Denied.`);
+		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied.');
 
 		const user = this.getUser(this.target);
 		if (!user) return this.errorReply(`The user "${this.target}" was not found.`);
@@ -82,13 +82,13 @@ export class Whois extends BaseCommand {
 			},
 		};
 
-		this.channel.send({embed: embed});
+		await this.channel.send({embed: embed});
 	}
 
 	static help(): string {
 		return `${prefix}whois @user - Get detailed information on the selected user.\n` +
-			`Requires: Kick Members Permissions\n` +
-			`Aliases: None`;
+			'Requires: Kick Members Permissions\n' +
+			'Aliases: None';
 	}
 }
 
@@ -99,7 +99,7 @@ export class Whois extends BaseCommand {
 abstract class StickyCommand extends BaseCommand {
 	async canAssignRole(user: Discord.GuildMember, role: Discord.Role): Promise<boolean> {
 		if (!this.guild || user.guild.id !== this.guild.id || role.guild.id !== this.guild.id) {
-			throw new Error(`Guild mismatch in sticky command`);
+			throw new Error('Guild mismatch in sticky command');
 		}
 		// This method does NOT perform a manage roles permission check.
 		// It simply checks if a user would be able to assign the role provided
@@ -118,7 +118,7 @@ abstract class StickyCommand extends BaseCommand {
 	}
 
 	async massStickyUpdate(role: Discord.Role, unsticky = false): Promise<void> {
-		if (!this.guild || this.guild.id !== role.guild.id) throw new Error(`Guild missmatch in sticky command`);
+		if (!this.guild || this.guild.id !== role.guild.id) throw new Error('Guild missmatch in sticky command');
 		if (!role.members.size) return; // No members have this role, so no database update needed
 
 		await this.guild.members.fetch();
@@ -132,7 +132,7 @@ abstract class StickyCommand extends BaseCommand {
 			argInt++;
 		}
 		query = query.slice(0, query.length - 2);
-		query += `);`;
+		query += ');';
 
 		await pgPool.query(query, args);
 	}
@@ -145,12 +145,12 @@ export class Sticky extends StickyCommand {
 
 	async execute() {
 		if (!toID(this.target)) return this.reply(Sticky.help());
-		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
-		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply(`Access Denied`);
+		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply('Access Denied');
 		const bot = this.guild.me ? this.guild.me.user : null;
-		if (!bot) throw new Error(`Bot user not found.`);
+		if (!bot) throw new Error('Bot user not found.');
 		if (!(await this.can('MANAGE_ROLES', bot))) {
-			return this.errorReply(`This bot needs the Manage Roles permission to use this command.`);
+			return this.errorReply('This bot needs the Manage Roles permission to use this command.');
 		}
 
 		// Validate @role exists
@@ -160,21 +160,21 @@ export class Sticky extends StickyCommand {
 		// Validate @role is something user can assign
 		await this.guild.members.fetch();
 		let guildMember = this.guild.members.cache.get(this.author.id);
-		if (!guildMember) throw new Error(`Cannot get guild member for user`);
+		if (!guildMember) throw new Error('Cannot get guild member for user');
 		if (!(await this.canAssignRole(guildMember, role))) {
-			return this.errorReply(`You are not able to assign this role and cannot make it sticky as a result.`);
+			return this.errorReply('You are not able to assign this role and cannot make it sticky as a result.');
 		}
 
 		// Validate @role is something the bot can assign
 		guildMember = this.guild.members.cache.get(bot.id);
-		if (!guildMember) throw new Error(`Cannot get guild member for bot`);
+		if (!guildMember) throw new Error('Cannot get guild member for bot');
 		if (!(await this.canAssignRole(guildMember, role))) {
-			return this.errorReply(`The bot is not able to assign this role and cannot make it sticky as a result.`);
+			return this.errorReply('The bot is not able to assign this role and cannot make it sticky as a result.');
 		}
 
 		// Validate @role is not already sticky (database query)
 		this.worker = await pgPool.connect();
-		const res = await this.worker.query(`SELECT sticky FROM servers WHERE serverid = $1`, [this.guild.id]);
+		const res = await this.worker.query('SELECT sticky FROM servers WHERE serverid = $1', [this.guild.id]);
 		if (!res.rows.length) {
 			throw new Error(`Unable to find sticky roles in database for guild: ${this.guild.name} (${this.guild.id})`);
 		}
@@ -182,7 +182,7 @@ export class Sticky extends StickyCommand {
 
 		if (stickyRoles.includes(role.id)) {
 			this.releaseWorker();
-			return this.errorReply(`That role is already sticky!`);
+			return this.errorReply('That role is already sticky!');
 		}
 
 		// ---VALIDATION LINE---
@@ -190,7 +190,7 @@ export class Sticky extends StickyCommand {
 		stickyRoles.push(role.id);
 		try {
 			await this.worker.query('BEGIN');
-			await this.worker.query(`UPDATE servers SET sticky = $1 WHERE serverid = $2`, [stickyRoles, this.guild.id]);
+			await this.worker.query('UPDATE servers SET sticky = $1 WHERE serverid = $2', [stickyRoles, this.guild.id]);
 			// Find all users with @role and perform database update so role is now sticky for them
 			await this.massStickyUpdate(role);
 			await this.worker.query('COMMIT');
@@ -201,13 +201,13 @@ export class Sticky extends StickyCommand {
 			throw e;
 		}
 		// Return success message
-		this.reply(`The role "${role.name}" is now sticky! Members who leave and rejoin the server with this role will have it reassigned automatically.`);
+		await this.reply(`The role "${role.name}" is now sticky! Members who leave and rejoin the server with this role will have it reassigned automatically.`);
 	}
 
 	static help(): string {
 		return `${prefix}sticky @role - Makes @role sticky, meaning users assigned this role will not be able to have it removed by leaving the server.\n` +
-			`Requires: Manage Roles Permissions\n` +
-			`Aliases: None`;
+			'Requires: Manage Roles Permissions\n' +
+			'Aliases: None';
 	}
 
 	static async init(): Promise<void> {
@@ -260,8 +260,8 @@ export class Unsticky extends StickyCommand {
 
 	async execute() {
 		if (!toID(this.target)) return this.reply(Unsticky.help());
-		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
-		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply(`Access Denied`);
+		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply('Access Denied');
 
 		// Validate @role exists
 		const role = await this.getRole(this.target, true); // TODO ask about using names for role gets
@@ -270,14 +270,14 @@ export class Unsticky extends StickyCommand {
 		// Validate @role is something user can assign
 		await this.guild.members.fetch();
 		const guildMember = this.guild.members.cache.get(this.author.id);
-		if (!guildMember) throw new Error(`Cannot get guild member for user`);
+		if (!guildMember) throw new Error('Cannot get guild member for user');
 		if (!(await this.canAssignRole(guildMember, role))) {
-			return this.errorReply(`You are not able to assign this role and cannot revoke its sticky status as a result.`);
+			return this.errorReply('You are not able to assign this role and cannot revoke its sticky status as a result.');
 		}
 
 		// Validate @role is sticky (database query)
 		this.worker = await pgPool.connect();
-		const res = await this.worker.query(`SELECT sticky FROM servers WHERE serverid = $1`, [this.guild.id]);
+		const res = await this.worker.query('SELECT sticky FROM servers WHERE serverid = $1', [this.guild.id]);
 		if (!res.rows.length) {
 			throw new Error(`Unable to find sticky roles in database for guild: ${this.guild.name} (${this.guild.id})`);
 		}
@@ -285,7 +285,7 @@ export class Unsticky extends StickyCommand {
 
 		if (!stickyRoles.includes(role.id)) {
 			this.releaseWorker();
-			return this.errorReply(`That role is not sticky!`);
+			return this.errorReply('That role is not sticky!');
 		}
 
 		// ---VALIDATION LINE---
@@ -293,7 +293,7 @@ export class Unsticky extends StickyCommand {
 		stickyRoles.splice(stickyRoles.indexOf(role.id), 1);
 		try {
 			await this.worker.query('BEGIN');
-			await this.worker.query(`UPDATE servers SET sticky = $1 WHERE serverid = $2`, [stickyRoles, this.guild.id]);
+			await this.worker.query('UPDATE servers SET sticky = $1 WHERE serverid = $2', [stickyRoles, this.guild.id]);
 			// Find all users with @role and perform database update so role is no longer sticky for them
 			await this.massStickyUpdate(role, true);
 			await this.worker.query('COMMIT');
@@ -304,13 +304,13 @@ export class Unsticky extends StickyCommand {
 			throw e;
 		}
 		// Return success message
-		this.reply(`The role "${role.name}" is no longer sticky.`);
+		await this.reply(`The role "${role.name}" is no longer sticky.`);
 	}
 
 	static help(): string {
 		return `${prefix}unsticky @role - Makes it so @role is no longer sticky. Users will be able to remove @role from themselves by leaving the server.\n` +
-			`Requires: Manage Roles Permissions\n` +
-			`Aliases: None`;
+			'Requires: Manage Roles Permissions\n' +
+			'Aliases: None';
 	}
 }
 
@@ -320,7 +320,7 @@ export class EnableLogs extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
+		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
 		if (!(await this.can('MANAGE_GUILD'))) return this.errorReply('Access Denied');
 		this.worker = await pgPool.connect();
 
@@ -330,7 +330,7 @@ export class EnableLogs extends BaseCommand {
 		}
 
 		await this.worker.query('UPDATE servers SET logchannel = $1 WHERE serverid = $2', [this.channel.id, this.guild.id]);
-		this.reply(`Server events will now be logged to this channel.`);
+		await this.reply('Server events will now be logged to this channel.');
 
 		this.worker.release();
 		this.worker = null;
@@ -338,8 +338,8 @@ export class EnableLogs extends BaseCommand {
 
 	static help(): string {
 		return `${prefix}enablelogs - Log moderation actions to this channel.\n` +
-			`Requires: Manage Server Permissions\n` +
-			`Aliases: None`;
+			'Requires: Manage Server Permissions\n' +
+			'Aliases: None';
 	}
 }
 
@@ -349,15 +349,15 @@ export class DisableLogs extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
+		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
 		if (!(await this.can('MANAGE_GUILD'))) return this.errorReply('Access Denied');
 		this.worker = await pgPool.connect();
 
 		const res = await this.worker.query('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
-		if (!res.rows[0].logchannel) return this.errorReply(`This server is not setup to log messages to a log channel.`);
+		if (!res.rows[0].logchannel) return this.errorReply('This server is not setup to log messages to a log channel.');
 
 		await this.worker.query('UPDATE servers SET logchannel = $1 WHERE serverid = $2', [null, this.guild.id]);
-		this.reply(`Server events will no longer be logged to this channel.`);
+		await this.reply('Server events will no longer be logged to this channel.');
 
 		this.worker.release();
 		this.worker = null;
@@ -365,7 +365,7 @@ export class DisableLogs extends BaseCommand {
 
 	static help(): string {
 		return `${prefix}disablelogs - Stop logging moderation actions to this channel.\n` +
-			`Requires: Manage Server Permissions\n` +
-			`Aliases: None`;
+			'Requires: Manage Server Permissions\n' +
+			'Aliases: None';
 	}
 }

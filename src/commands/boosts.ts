@@ -13,7 +13,7 @@ async function updateBoosters() {
 	for (const [guildId, guild] of client.guilds.cache) {
 		const res = await worker.query('SELECT userid FROM userlist WHERE serverid = $1 AND boosting IS NOT NULL', [guildId]);
 		const boosting = res.rows.map(r => r.userid);
-		const logchannelResult = await pgPool.query(`SELECT logchannel FROM servers WHERE serverid = $1`, [guildId]);
+		const logchannelResult = await pgPool.query('SELECT logchannel FROM servers WHERE serverid = $1', [guildId]);
 		const logChannel = client.channels.cache.get(logchannelResult.rows[0].logchannel) as DiscordChannel;
 		await guild.members.fetch();
 
@@ -51,11 +51,11 @@ async function updateBoosters() {
 						[gm.premiumSince, guildId, id]
 					);
 				}
-				if (logChannel) logChannel.send(`<@${id}> has started boosting!`);
+				await logChannel?.send(`<@${id}> has started boosting!`);
 			} else {
 				if (!boosting.includes(id)) continue; // Was not bosting before
 				await worker.query('UPDATE userlist SET boosting = NULL WHERE serverid = $1 AND userid = $2', [guildId, id]);
-				if (logChannel) logChannel.send(`<@${id}> is no longer boosting.`);
+				await logChannel?.send(`<@${id}> is no longer boosting.`);
 				boosting.splice(boosting.indexOf(id), 1);
 			}
 		}
@@ -63,7 +63,7 @@ async function updateBoosters() {
 		// Anyone left in boosting left the server and is no longer boosting
 		for (const desterter of boosting) {
 			await worker.query('UPDATE userlist SET boosting = NULL WHERE serverid = $1 AND userid = $2', [guildId, desterter]);
-			if (logChannel) logChannel.send(`<@${desterter}> is no longer boosting because they left the server.`);
+			await logChannel?.send(`<@${desterter}> is no longer boosting because they left the server.`);
 		}
 	}
 
@@ -73,7 +73,7 @@ async function updateBoosters() {
 	const nextCheck = new Date();
 	nextCheck.setDate(nextCheck.getDate() + 1);
 	nextCheck.setHours(0, 0, 0, 0);
-	setTimeout(() => updateBoosters(), nextCheck.getTime() - Date.now());
+	setTimeout(() => void updateBoosters(), nextCheck.getTime() - Date.now());
 }
 
 class BoostPage extends ReactionPageTurner {
@@ -92,7 +92,7 @@ class BoostPage extends ReactionPageTurner {
 	buildPage(): Discord.MessageEmbed {
 		const embed: Discord.MessageEmbedOptions = {
 			color: 0xf47fff,
-			description: `Current Nitro Boosters`,
+			description: 'Current Nitro Boosters',
 			author: {
 				name: this.guild.name,
 				icon_url: this.guild.iconURL() || '',
@@ -133,8 +133,8 @@ export class Boosters extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
-		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply(`Access Denied.`);
+		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply('Access Denied.');
 
 		const res = await pgPool.query('SELECT u.name, u.discriminator, ul.boosting ' +
 			'FROM users u ' +
@@ -149,11 +149,11 @@ export class Boosters extends BaseCommand {
 
 	static help(): string {
 		return `${prefix}boosters - List this server's current Nitro Boosters and when they started boosting. Results may be out of date by up to 24 hours.\n` +
-			`Requires: Manage Roles Permissions\n` +
-			`Aliases: None`;
+			'Requires: Manage Roles Permissions\n' +
+			'Aliases: None';
 	}
 
 	static async init(): Promise<void> {
-		updateBoosters();
+		await updateBoosters();
 	}
 }

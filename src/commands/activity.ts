@@ -22,9 +22,9 @@ class ActivityPage extends ReactionPageTurner {
 	// booleans are for leaderboard and the buildGeneral methods.
 	private target: Discord.User | DiscordChannel | boolean;
 	private readonly printVersions: {[key: string]: string[]} = {
-		day: ["Today's ", 'Daily '],
-		week: ["This Week's ", 'Weekly '],
-		month: ["This Month's ", 'Monthly '],
+		day: ['Today\'s ', 'Daily '],
+		week: ['This Week\'s ', 'Weekly '],
+		month: ['This Month\'s ', 'Monthly '],
 		alltime: ['All Time ', 'All Time '],
 	};
 	constructor(
@@ -72,26 +72,27 @@ class ActivityPage extends ReactionPageTurner {
 		};
 		embed.fields = []; // To appease typescript, we do this here
 
-		for (let i = (this.page - 1) * this.rowsPerPage; i < (((this.page - 1) * this.rowsPerPage) + this.rowsPerPage); i++) {
+		const start = (this.page - 1) * this.rowsPerPage;
+		for (let i = start; i < (start + this.rowsPerPage); i++) {
 			const row = this.data[i];
 			if (!row) break; // End of data
 
 			let date = '';
 			switch (this.granularity) {
-			case 'alltime':
-				date = 'All Records';
-				break;
-			case 'month':
-				date = ENGLISH_MONTH_NAMES[row.time - 1];
-				break;
-			case 'week':
-				date = 'Week ' + row.time;
-				break;
-			case 'day':
-				date = row.time.toLocaleDateString(undefined, {dateStyle: 'long'});
-				break;
-			default:
-				throw new Error(`Unsupported granularity "${this.granularity}".`);
+				case 'alltime':
+					date = 'All Records';
+					break;
+				case 'month':
+					date = ENGLISH_MONTH_NAMES[row.time - 1];
+					break;
+				case 'week':
+					date = 'Week ' + row.time;
+					break;
+				case 'day':
+					date = row.time.toLocaleDateString(undefined, {dateStyle: 'long'});
+					break;
+				default:
+					throw new Error(`Unsupported granularity "${this.granularity}".`);
 			}
 
 			embed.fields.push({
@@ -111,8 +112,8 @@ class ActivityPage extends ReactionPageTurner {
 	}
 
 	private buildGeneral(): Discord.MessageEmbed {
-		if (typeof this.target !== 'boolean') throw new Error(`Target user/channel passed to general activity page turner.`);
-		const description = this.target ? `Most Active Channels` : `Chatter Leaderboard`;
+		if (typeof this.target !== 'boolean') throw new Error('Target user/channel passed to general activity page turner.');
+		const description = this.target ? 'Most Active Channels' : 'Chatter Leaderboard';
 
 		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
@@ -128,7 +129,8 @@ class ActivityPage extends ReactionPageTurner {
 		};
 		embed.fields = []; // To appease typescript, we do this here
 
-		for (let i = (this.page - 1) * this.rowsPerPage; i < (((this.page - 1) * this.rowsPerPage) + this.rowsPerPage); i++) {
+		const start = (this.page - 1) * this.rowsPerPage;
+		for (let i = start; i < start + this.rowsPerPage; i++) {
 			const row = this.data[i];
 			if (!row) break; // End of data
 			if (this.target) {
@@ -170,34 +172,34 @@ export class Leaderboard extends BaseCommand {
 	protected async fetchData(granularity: string): Promise<any[]> {
 		if (!this.guild) {
 			// This should never happen because this method is only called after this.guild is checked
-			throw new Error(`Unable to find guild when fetching data for leaderboard.`);
+			throw new Error('Unable to find guild when fetching data for leaderboard.');
 		}
 		const args = [this.guild.id];
-		let query = `SELECT u.name, u.discriminator, SUM(l.lines) FROM lines l INNER JOIN users u ON u.userid = l.userid WHERE l.serverid = $1`;
+		let query = 'SELECT u.name, u.discriminator, SUM(l.lines) FROM lines l INNER JOIN users u ON u.userid = l.userid WHERE l.serverid = $1';
 		const d = new Date();
 		const dateString = d.toLocaleDateString(undefined, {month: '2-digit', day: '2-digit', year: 'numeric'});
 
 		switch (granularity) {
-		case 'alltime':
+			case 'alltime':
 			// Do nothing here
-			break;
-		case 'month':
-			query += ` AND EXTRACT(MONTH FROM l.logdate) = $2`;
-			args.push("" + (d.getMonth() + 1));
-			break;
-		case 'week':
-			query += ` AND EXTRACT(WEEK FROM l.logdate) = EXTRACT(WEEK FROM CAST($2 AS DATE))`;
-			args.push(dateString);
-			break;
-		case 'day':
-			query += ` AND l.logdate = $2`;
-			args.push(dateString);
-			break;
-		default:
-			throw new Error(`Unsupported granulity: ${granularity}`);
+				break;
+			case 'month':
+				query += ' AND EXTRACT(MONTH FROM l.logdate) = $2';
+				args.push('' + (d.getMonth() + 1));
+				break;
+			case 'week':
+				query += ' AND EXTRACT(WEEK FROM l.logdate) = EXTRACT(WEEK FROM CAST($2 AS DATE))';
+				args.push(dateString);
+				break;
+			case 'day':
+				query += ' AND l.logdate = $2';
+				args.push(dateString);
+				break;
+			default:
+				throw new Error(`Unsupported granulity: ${granularity}`);
 		}
 
-		query += ` GROUP BY u.name, u.discriminator ORDER BY SUM(l.lines) desc;`;
+		query += ' GROUP BY u.name, u.discriminator ORDER BY SUM(l.lines) desc;';
 		const res = await pgPool.query(query, args);
 
 		return res.rows;
@@ -208,7 +210,7 @@ export class Leaderboard extends BaseCommand {
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
 			if (!this.guild) {
-				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				await this.errorReply('Because you used this command in PMs, you must provide the server argument.');
 				return this.sendCode(Leaderboard.help());
 			}
 		}
@@ -224,9 +226,9 @@ export class Leaderboard extends BaseCommand {
 
 	static help(): string {
 		return `${prefix}leaderboard [day | week | month | alltime], [server] - Gets the public chat leaderboard for the selected timeframe. Timeframe defaults to alltime.\n` +
-			`Requires: Kick Members Permissions\n` +
+			'Requires: Kick Members Permissions\n' +
 			`Aliases: ${aliases.leaderboard.map(a => `${prefix}${a} `)}\n` +
-			`Related Commands: channelleaderboard, linecount, channellinecount`;
+			'Related Commands: channelleaderboard, linecount, channellinecount';
 	}
 }
 
@@ -238,35 +240,35 @@ export class ChannelLeaderboard extends BaseCommand {
 	protected async fetchData(granularity: string): Promise<any[]> {
 		if (!this.guild) {
 			// This should never happen because this method is only called after this.guild is checked
-			throw new Error(`Unable to find guild when fetching data for channel leaderboard.`);
+			throw new Error('Unable to find guild when fetching data for channel leaderboard.');
 		}
 		const args = [this.guild.id];
-		let query = `SELECT ch.channelname, SUM(cl.lines) FROM channellines cl INNER JOIN channels ch ON cl.channelid = ch.channelid`;
-		query += ` INNER JOIN servers s ON ch.serverid = s.serverid WHERE ch.serverid = $1`;
+		let query = 'SELECT ch.channelname, SUM(cl.lines) FROM channellines cl INNER JOIN channels ch ON cl.channelid = ch.channelid';
+		query += ' INNER JOIN servers s ON ch.serverid = s.serverid WHERE ch.serverid = $1';
 		const d = new Date();
 		const dateString = d.toLocaleDateString(undefined, {month: '2-digit', day: '2-digit', year: 'numeric'});
 
 		switch (granularity) {
-		case 'alltime':
+			case 'alltime':
 			// Do nothing here
-			break;
-		case 'month':
-			query += ` AND EXTRACT(MONTH FROM cl.logdate) = $2`;
-			args.push("" + (d.getMonth() + 1));
-			break;
-		case 'week':
-			query += ` AND EXTRACT(WEEK FROM cl.logdate) = EXTRACT(WEEK FROM CAST($2 AS DATE))`;
-			args.push(dateString);
-			break;
-		case 'day':
-			query += ` AND cl.logdate = $2`;
-			args.push(dateString);
-			break;
-		default:
-			throw new Error(`Unsupported granulity: ${granularity}`);
+				break;
+			case 'month':
+				query += ' AND EXTRACT(MONTH FROM cl.logdate) = $2';
+				args.push('' + (d.getMonth() + 1));
+				break;
+			case 'week':
+				query += ' AND EXTRACT(WEEK FROM cl.logdate) = EXTRACT(WEEK FROM CAST($2 AS DATE))';
+				args.push(dateString);
+				break;
+			case 'day':
+				query += ' AND cl.logdate = $2';
+				args.push(dateString);
+				break;
+			default:
+				throw new Error(`Unsupported granulity: ${granularity}`);
 		}
 
-		query += ` GROUP BY ch.channelname ORDER BY SUM(cl.lines) desc;`;
+		query += ' GROUP BY ch.channelname ORDER BY SUM(cl.lines) desc;';
 		const res = await pgPool.query(query, args);
 
 		return res.rows;
@@ -277,7 +279,7 @@ export class ChannelLeaderboard extends BaseCommand {
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
 			if (!this.guild) {
-				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				await this.errorReply('Because you used this command in PMs, you must provide the server argument.');
 				return this.sendCode(ChannelLeaderboard.help());
 			}
 		}
@@ -293,9 +295,9 @@ export class ChannelLeaderboard extends BaseCommand {
 
 	static help(): string {
 		return `${prefix}channelleaderboard [day | week | month | alltime], [server] - Gets the activity leaderboard for public channels in the selected timeframe. Timeframe defaults to alltime.\n` +
-			`Requires: Kick Members Permissions\n` +
+			'Requires: Kick Members Permissions\n' +
 			`Aliases: ${aliases.channelleaderboard.map(a => `${prefix}${a} `)}\n` +
-			`Related Commands: leaderboard, linecount, channellinecount`;
+			'Related Commands: leaderboard, linecount, channellinecount';
 	}
 }
 
@@ -307,25 +309,25 @@ export class Linecount extends BaseCommand {
 	protected async fetchData(granularity: string, id?: string): Promise<any[]> {
 		if (!this.guild) {
 			// This should never happen because this method is only called after this.guild is checked
-			throw new Error(`Unable to find guild when fetching data for user linecount.`);
+			throw new Error('Unable to find guild when fetching data for user linecount.');
 		}
 		let key = '';
 
 		switch (granularity) {
-		case 'alltime':
+			case 'alltime':
 			// Do nothing here
-			break;
-		case 'month':
-			key = `EXTRACT(MONTH FROM l.logdate)`;
-			break;
-		case 'week':
-			key = `EXTRACT(WEEK FROM l.logdate)`;
-			break;
-		case 'day':
-			key = `l.logdate`;
-			break;
-		default:
-			throw new Error(`Unsupported granulity: ${granularity}`);
+				break;
+			case 'month':
+				key = 'EXTRACT(MONTH FROM l.logdate)';
+				break;
+			case 'week':
+				key = 'EXTRACT(WEEK FROM l.logdate)';
+				break;
+			case 'day':
+				key = 'l.logdate';
+				break;
+			default:
+				throw new Error(`Unsupported granulity: ${granularity}`);
 		}
 
 		let query = `SELECT ${key ? key + ' AS time, ' : ''}SUM(l.lines) FROM lines l WHERE l.serverid = $1 AND l.userid = $2`;
@@ -341,7 +343,7 @@ export class Linecount extends BaseCommand {
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
 			if (!this.guild) {
-				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				await this.errorReply('Because you used this command in PMs, you must provide the server argument.');
 				return this.reply(Linecount.help());
 			}
 		}
@@ -360,9 +362,9 @@ export class Linecount extends BaseCommand {
 
 	static help(): string {
 		return `${prefix}linecount @user, [day | week | month | alltime], [server] - Gets a user's public activity in the selected timeframe. Timeframe defaults to day.\n` +
-			`Requires: Kick Members Permissions\n` +
+			'Requires: Kick Members Permissions\n' +
 			`Aliases: ${aliases.linecount.map(a => `${prefix}${a} `)}\n` +
-			`Related Commands: leaderboard, channelleaderboard, channellinecount`;
+			'Related Commands: leaderboard, channelleaderboard, channellinecount';
 	}
 }
 
@@ -374,29 +376,29 @@ export class ChannelLinecount extends BaseCommand {
 	protected async fetchData(granularity: string, id?: string): Promise<any[]> {
 		if (!this.guild) {
 			// This should never happen because this method is only called after this.guild is checked
-			throw new Error(`Unable to find guild when fetching data for channel linecount.`);
+			throw new Error('Unable to find guild when fetching data for channel linecount.');
 		}
 		let key = '';
 
 		switch (granularity) {
-		case 'alltime':
+			case 'alltime':
 			// Do nothing here
-			break;
-		case 'month':
-			key = `EXTRACT(MONTH FROM cl.logdate)`;
-			break;
-		case 'week':
-			key = `EXTRACT(WEEK FROM cl.logdate)`;
-			break;
-		case 'day':
-			key = `cl.logdate`;
-			break;
-		default:
-			throw new Error(`Unsupported granulity: ${granularity}`);
+				break;
+			case 'month':
+				key = 'EXTRACT(MONTH FROM cl.logdate)';
+				break;
+			case 'week':
+				key = 'EXTRACT(WEEK FROM cl.logdate)';
+				break;
+			case 'day':
+				key = 'cl.logdate';
+				break;
+			default:
+				throw new Error(`Unsupported granulity: ${granularity}`);
 		}
 
 		let query = `SELECT ${key ? key + ' AS time, ' : ''}SUM(cl.lines) FROM channellines cl INNER JOIN channels ch ON cl.channelid = ch.channelid`;
-		query += ` WHERE ch.serverid = $1 AND ch.channelid = $2`;
+		query += ' WHERE ch.serverid = $1 AND ch.channelid = $2';
 		if (key) query += ` GROUP BY ${key} ORDER BY ${key} desc;`;
 		const args = [this.guild.id, id];
 		const res = await pgPool.query(query, args);
@@ -409,7 +411,7 @@ export class ChannelLinecount extends BaseCommand {
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
 			if (!this.guild) {
-				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				await this.errorReply('Because you used this command in PMs, you must provide the server argument.');
 				return this.sendCode(ChannelLinecount.help());
 			}
 		}
@@ -428,8 +430,8 @@ export class ChannelLinecount extends BaseCommand {
 
 	static help(): string {
 		return `${prefix}channellinecount #channel, [day | week | month | alltime], [server] - Gets a public channel's activity in the selected timeframe. Timeframe defaults to day.\n` +
-			`Requires: Kick Members Permissions\n` +
+			'Requires: Kick Members Permissions\n' +
 			`Aliases: ${aliases.channellinecount.map(a => `${prefix}${a} `)}\n` +
-			`Related Commands: leaderboard, channelleaderboard, linecount`;
+			'Related Commands: leaderboard, channelleaderboard, linecount';
 	}
 }

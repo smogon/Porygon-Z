@@ -1,43 +1,13 @@
 {
-  "extends": "./.eslintrc-no-types.json",
-  "overrides": [
-    {
-      "files": ["./src/*.ts"],
-      "parser": "@typescript-eslint/parser",
-      "parserOptions": {
-        "ecmaVersion": 9,
-        "sourceType": "module",
-        "tsconfigRootDir": ".",
+    "extends": "@pkmn/eslint-config",
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
         "project": ["./tsconfig.json"]
-      },
-      "extends": [
-        "plugin:@typescript-eslint/recommended",
-        "plugin:@typescript-eslint/recommended-requiring-type-checking",
-        "./.eslintrc-no-types.json"
-      ],
-      "rules": {
-        "@typescript-eslint/restrict-plus-operands": "off",
-
-        // typescript-eslint defaults too strict
-        "@typescript-eslint/no-unsafe-assignment": "off",
-        "@typescript-eslint/no-unsafe-call": "off",
-        "@typescript-eslint/no-unsafe-member-access": "off",
-        "@typescript-eslint/no-unsafe-return": "off",
-        "@typescript-eslint/restrict-template-expressions": "off",
-
-        // probably bugs
-        "@typescript-eslint/no-floating-promises": "error",
-        "@typescript-eslint/no-for-in-array": "error",
-        "@typescript-eslint/no-misused-promises": "error",
-        "@typescript-eslint/no-throw-literal": "error",
-
-        // syntax style (local syntactical, usually autofixable formatting decisions)
-        "@typescript-eslint/no-unnecessary-qualifier": "off",
-        "@typescript-eslint/no-unnecessary-type-arguments": "error",
-        "@typescript-eslint/no-unnecessary-type-assertion": "error",
-        "@typescript-eslint/prefer-regexp-exec": "error",
-        "@typescript-eslint/prefer-string-starts-ends-with": "error"
-      }
+    },
+    "rules": {
+        "@typescript-eslint/indent": ["error", "tab"],
+        "max-len": ["error", {"code": 120, "ignoreStrings": true, "ignoreTemplateLiterals": true, "ignoreComments": true}],
+        "@typescript-eslint/no-floating-promises": ["error", {"ignoreVoid": true}],
+        "@typescript-eslint/restrict-template-expressions": ["off"]
     }
-  ]
 }
