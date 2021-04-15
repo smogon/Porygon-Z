@@ -3,9 +3,9 @@
  * Basic development related commands, may rename later.
  */
 import Discord = require('discord.js');
-import { shutdown } from '../app';
-import { ID, prefix, toID, pgPool } from '../common';
-import { BaseCommand, DiscordChannel, IAliasList } from '../command_base';
+import {shutdown} from '../app';
+import {prefix, pgPool} from '../common';
+import {BaseCommand, IAliasList} from '../command_base';
 import * as child_process from 'child_process';
 let updateLock = false;
 
@@ -18,13 +18,13 @@ export class Ping extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
-		this.reply(`Pong!`);
+	async execute() {
+		await this.reply('Pong!');
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}ping - Pings the bot, used to check if the bot's command engine is working.\n` +
-			`Aliases: None`;
+			'Aliases: None';
 	}
 }
 
@@ -33,17 +33,18 @@ export class Eval extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
-		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
+	async execute() {
+		if (!(await this.can('EVAL'))) return this.errorReply('You do not have permission to do that.');
 		let result: any = '';
 		try {
-			// tslint:disable-next-line: no-eval - only owners can use
+			// Eval is (hopefully) secure here as we are permission-checked to owners.
+			// eslint-disable-next-line no-eval
 			result = await eval(this.target);
 			if (result === '') result = '""';
 		} catch (e) {
 			result = `An error occured: ${e.toString()}`;
 		}
-		this.sendCode(result);
+		await this.sendCode(result);
 	}
 }
 
@@ -52,28 +53,28 @@ export class Query extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
-		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
+	async execute() {
+		if (!(await this.can('EVAL'))) return this.errorReply('You do not have permission to do that.');
 		pgPool.query(this.target, (err, res) => {
 			if (err) {
-				this.sendCode(`An error occured: ${err.toString()}`);
+				void this.sendCode(`An error occured: ${err.toString()}`);
 			} else {
-				this.sendCode(this.formatResponse(res.rows));
+				void this.sendCode(this.formatResponse(res.rows));
 			}
 		});
 	}
 
 	private formatResponse(rows: any[]): string {
-		let table = ``;
+		let table = '';
 
 		// Add header
-		for (let key in rows[0]) {
+		for (const key in rows[0]) {
 			table += key + ' ';
 		}
 		table += '\n';
 
-		for (let row of rows) {
-			for (let value of Object.values(row)) {
+		for (const row of rows) {
+			for (const value of Object.values(row)) {
 				table += value + ' ';
 			}
 			table += '\n';
@@ -89,19 +90,20 @@ export class Update extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
-		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
-		if (updateLock) return this.errorReply(`Another update is already in progress.`);
+	async execute() {
+		if (!(await this.can('EVAL'))) return this.errorReply('You do not have permission to do that.');
+		if (updateLock) return this.errorReply('Another update is already in progress.');
 		updateLock = true;
 
-		child_process.exec(`git pull --rebase origin master`, (error, stdout, stderr) => {
+		child_process.exec('git pull --rebase origin master', (error) => {
 			updateLock = false;
 			if (error) {
-				this.errorReply(`An error occured while updating the bot: `);
-				this.sendCode(error.stack || 'No stack trace found.');
+				void this.errorReply('An error occured while updating the bot: ');
+				void this.sendCode(error.stack || 'No stack trace found.');
 				return;
 			}
-			return this.reply(`Update complete.`);
+			void this.reply('Update complete.');
+			return;
 		});
 	}
 }
@@ -111,16 +113,16 @@ export class Shutdown extends BaseCommand {
 		super(message);
 	}
 
-	public async execute() {
-		if (!(await this.can('EVAL'))) return this.errorReply(`You do not have permission to do that.`);
-		if (updateLock) return this.errorReply(`Wait for the update to finish.`);
+	async execute() {
+		if (!(await this.can('EVAL'))) return this.errorReply('You do not have permission to do that.');
+		if (updateLock) return this.errorReply('Wait for the update to finish.');
 		shutdown();
 
-		this.reply(`Shutting down...`);
+		await this.reply('Shutting down...');
 
 		// Incase the following never exists, kill in 10 seconds
 		setTimeout(() => {
-			console.log(`Graceful shutdown took too long, killing`);
+			console.log('Graceful shutdown took too long, killing');
 			process.exit();
 		}, 10000);
 

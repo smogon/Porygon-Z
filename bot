@@ -4,7 +4,7 @@ require('child_process').execSync(__dirname + '/node_modules/.bin/tsc', {stdio: 
 if (!process.env.TOKEN) {
 	console.log('Bot login token not found. Make sure you created a .env file and added: ');
 	console.log('TOKEN=your token here');
-	console.log('Alternatively if you did the above, make sure your starting the bot with npm start');
+	console.log(`Alternatively if you did the above, make sure you're starting the bot with npm start`);
 	return;
 }
 console.log('Starting...');

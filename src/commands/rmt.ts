@@ -4,8 +4,8 @@
  * Also see src/monitors/rmt.ts
  */
 import Discord = require('discord.js');
-import { ID, prefix, toID, pgPool } from '../common';
-import { BaseCommand, DiscordChannel, IAliasList, ReactionPageTurner } from '../command_base';
+import {prefix, toID, pgPool} from '../common';
+import {BaseCommand, DiscordChannel, IAliasList, ReactionPageTurner} from '../command_base';
 
 export const aliases: IAliasList = {
 	addteamrater: ['atr'],
@@ -17,19 +17,20 @@ class RaterList extends ReactionPageTurner {
 	private guild: Discord.Guild;
 	private data: any[];
 	private format: string | null;
-	constructor(channel: DiscordChannel, user: Discord.User, guild: Discord.Guild, data: any[], format?: string, options?: Discord.ReactionCollectorOptions) {
+	constructor(
+		channel: DiscordChannel, user: Discord.User, guild: Discord.Guild,
+		data: any[], format?: string, options?: Discord.ReactionCollectorOptions
+	) {
 		super(channel, user, options);
 
 		this.guild = guild;
 		this.data = data;
 		this.format = format || null;
 		this.lastPage = Math.ceil(this.data.length / 10);
-
-		this.initalize(channel);
 	}
 
-	public buildPage(): Discord.MessageEmbed {
-		let embed: Discord.MessageEmbedOptions = {
+	buildPage(): Discord.MessageEmbed {
+		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
 			description: `${this.format ? this.format + ' ' : ''}Team Raters for ${this.guild.name}`,
 			author: {
@@ -39,8 +40,8 @@ class RaterList extends ReactionPageTurner {
 			timestamp: Date.now(),
 			footer: {
 				text: `Page ${this.page}/${this.lastPage || 1}`,
-			}
-		}
+			},
+		};
 
 		if (this.format) {
 			embed.fields = this.buildFormat();
@@ -59,15 +60,15 @@ class RaterList extends ReactionPageTurner {
 	}
 
 	private buildFull(): Discord.EmbedFieldData[] {
-		let formats: {[format: string]: string[]} = {};
-		let fields: Discord.EmbedFieldData[] = [];
+		const formats: {[format: string]: string[]} = {};
+		const fields: Discord.EmbedFieldData[] = [];
 
-		for (let row of this.data) {
+		for (const row of this.data) {
 			if (!formats[row.format]) formats[row.format] = [];
 			formats[row.format].push(row.name + '#' + row.discriminator);
 		}
 
-		for (let format in formats) {
+		for (const format in formats) {
 			fields.push({
 				name: format,
 				value: formats[format].join(', '),
@@ -97,18 +98,18 @@ abstract class RmtCommand extends BaseCommand {
 	 * Parse user input into a format
 	 * @param formatid the id of the format
 	 */
-	protected checkFormat(formatid: string, silent: boolean = false): string | void {
+	protected checkFormat(formatid: string, silent = false): string | void {
 		formatid = toID(formatid);
 
-		let prefixRegexp = /^(?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY)/i;
-		let matches = prefixRegexp.exec(formatid);
+		const prefixRegexp = /^(?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY)/i;
+		const matches = prefixRegexp.exec(formatid);
 		if (matches) {
 			if (matches.length !== 1) {
-				if (!silent) this.errorReply('A format can only have one generation.');
+				if (!silent) void this.errorReply('A format can only have one generation.');
 				return;
 			}
 			// Covert to the Gen # format
-			let gens: {[key: string]: number} = {
+			const gens: {[key: string]: number} = {
 				swsh: 8,
 				ss: 8,
 				usum: 7,
@@ -129,10 +130,11 @@ abstract class RmtCommand extends BaseCommand {
 			formatid = formatid.replace(matches[0], 'gen' + (gens[matches[0]] || 8));
 		}
 
-		let formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:Nat|National) ?Dex|Doubles|D)? ?(?:[OURNPZ]U|AG|LC|VGC|OM|BS[SD]|(?:Over|Under|Rarely|Never|Zero)used|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything ?Goes|Video ?Game ?Championships?|Battle ?(?:Spot|Stadium) ?(?:Singles?|Doubles?)|1v1|Other ?Meta(?:s|games?)?))\b/i;
-		let format = formatRegexp.exec(formatid);
-		if (!format || !format.length) {
-			if (!silent) this.errorReply(`\`${formatid}\` is not a valid format.`);
+		// eslint-disable-next-line max-len
+		const formatRegexp = /\b((?:SWSH|SS|USUM|SM|ORAS|XY|B2W2|BW2|BW|HGSS|DPP|DP|RSE|ADV|GSC|RBY|Gen ?[1-8]\]?)? ?(?:(?:Nat|National) ?Dex|Doubles|D)? ?(?:[OURNPZ]U|AG|LC|VGC|OM|BS[SD]|(?:Over|Under|Rarely|Never|Zero)used|Ubers?|Monotype|Little ?Cup|Nat ?Dex|Anything ?Goes|Video ?Game ?Championships?|Battle ?(?:Spot|Stadium) ?(?:Singles?|Doubles?)|1v1|Other ?Meta(?:s|games?)?))\b/i;
+		const format = formatRegexp.exec(formatid);
+		if (!format?.length) {
+			if (!silent) void this.errorReply(`\`${formatid}\` is not a valid format.`);
 			return;
 		}
 		if (!format[0].startsWith('gen')) {
@@ -143,24 +145,24 @@ abstract class RmtCommand extends BaseCommand {
 	}
 }
 
-export class AddTeamRater extends RmtCommand{
+export class AddTeamRater extends RmtCommand {
 	constructor(message: Discord.Message) {
 		super(message);
 	}
 
-	public async execute() {
-		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
+	async execute() {
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 
 		// Validate arguments
-		let [username, rawFormat, rawChannel] = this.target.split(',');
+		const [username, rawFormat, rawChannel] = this.target.split(',');
 
 		if (!toID(username) || !toID(rawFormat)) return this.reply(AddTeamRater.help());
 
-		let user = this.getUser(username);
+		const user = this.getUser(username);
 		if (!user) return this.errorReply(`Unable to find the user "${username}".`);
 
-		let format = this.checkFormat(rawFormat);
+		const format = this.checkFormat(rawFormat);
 		if (!format) return; // Error message handled in checkFormat
 
 		// Check if channel exists
@@ -181,7 +183,10 @@ export class AddTeamRater extends RmtCommand{
 		this.worker = await pgPool.connect();
 
 		// Ensure this user isnt already a rater for this format
-		let res = await this.worker.query(`SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3`, [user.id, format, channel.id]);
+		const res = await this.worker.query(
+			'SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3',
+			[user.id, format, channel.id]
+		);
 		if (res.rows.length) {
 			// This user is already a rater for this format
 			this.releaseWorker();
@@ -189,15 +194,18 @@ export class AddTeamRater extends RmtCommand{
 		}
 
 		// Add user to team raters
-		await this.worker.query('INSERT INTO teamraters (userid, format, channelid) VALUES ($1, $2, $3)', [user.id, format, channel.id]);
+		await this.worker.query(
+			'INSERT INTO teamraters (userid, format, channelid) VALUES ($1, $2, $3)',
+			[user.id, format, channel.id]
+		);
 		this.releaseWorker();
 
-		this.reply(`${user.username} has been added as a team rater for ${format} in ${channel}`);
+		await this.reply(`${user.username} has been added as a team rater for ${format} in ${channel}`);
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}addteamrater @user, format, [#channel] - Add @user as a team rater for the selected format in #channel.\n` +
-			`Requires: Kick Members Permissions\n` +
+			'Requires: Kick Members Permissions\n' +
 			`Aliases: ${prefix}atr`;
 	}
 }
@@ -207,19 +215,19 @@ export class RemoveTeamRater extends RmtCommand {
 		super(message);
 	}
 
-	public async execute() {
-		if (!this.guild) return this.errorReply(`This command is not mean't to be used in PMs.`);
+	async execute() {
+		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 
 		// Validate arguments
-		let [username, rawFormat, rawChannel] = this.target.split(',');
+		const [username, rawFormat, rawChannel] = this.target.split(',');
 
 		if (!toID(username) || !toID(rawFormat)) return this.reply(RemoveTeamRater.help());
 
-		let user = this.getUser(username);
+		const user = this.getUser(username);
 		if (!user) return this.errorReply(`Unable to find the user "${username}".`);
 
-		let format = this.checkFormat(rawFormat);
+		const format = this.checkFormat(rawFormat);
 		if (!format) return; // Error message handled in checkFormat
 
 		// Check if channel exists
@@ -232,21 +240,27 @@ export class RemoveTeamRater extends RmtCommand {
 		}
 
 		// Ensure this user is a rater for this format in this channel
-		let res = await pgPool.query(`SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3`, [user.id, format, channel.id]);
+		const res = await pgPool.query(
+			'SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3',
+			[user.id, format, channel.id]
+		);
 		if (!res.rows.length) {
 			// This user is not a rater for this format in this channel
 			return this.errorReply(`${user.username} is not a team rater for ${format} in ${channel}.`);
 		}
 
 		// Remove user from team rater list
-		await pgPool.query(`DELETE FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3`, [user.id, format, channel.id]);
+		await pgPool.query(
+			'DELETE FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3',
+			[user.id, format, channel.id]
+		);
 
-		this.reply(`${user.username} is no longer a team rater for ${format} in ${channel}`);
+		await this.reply(`${user.username} is no longer a team rater for ${format} in ${channel}`);
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}removeteamrater @user, format, [#channel] - Remove @user from being a team rater for the selected format in #channel.\n` +
-			`Requires: Kick Members Permissions\n` +
+			'Requires: Kick Members Permissions\n' +
 			`Aliases: ${prefix}rtr`;
 	}
 }
@@ -256,54 +270,57 @@ export class ListRaters extends RmtCommand {
 		super(message);
 	}
 
-	public async execute() {
-		let [rawFormat, rawChannel, server] = this.target.split(',').map(v => v.trim());
+	async execute() {
+		const [rawFormat, rawChannel, server] = this.target.split(',').map(v => v.trim());
 		let allowServerName = false;
 		if (!this.guild) {
 			this.guild = await this.getServer(server, true, true) || null;
 			if (!this.guild) {
-				this.errorReply(`Because you used this command in PMs, you must provide the server argument.`);
+				await this.errorReply('Because you used this command in PMs, you must provide the server argument.');
 				return this.sendCode(ListRaters.help());
 			}
 			allowServerName = true;
 		}
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 
-		let format = this.checkFormat(rawFormat, true);
-		let channel = this.getChannel(rawChannel, true, true, allowServerName);
+		const format = this.checkFormat(rawFormat, true);
+		const channel = this.getChannel(rawChannel, true, true, allowServerName);
 
 		if (!format) {
-			let res = await pgPool.query(`SELECT DISTINCT u.name, u.discriminator, tr.format FROM teamraters tr ` +
-			`INNER JOIN channels ch ON tr.channelid = ch.channelid ` +
-			`INNER JOIN servers s ON ch.serverid = s.serverid ` +
-			`INNER JOIN users u ON tr.userid = u.userid ` +
-			`WHERE s.serverid = $1 ` +
-			`ORDER BY tr.format;`, [this.guild.id]);
+			const res = await pgPool.query('SELECT DISTINCT u.name, u.discriminator, tr.format FROM teamraters tr ' +
+			'INNER JOIN channels ch ON tr.channelid = ch.channelid ' +
+			'INNER JOIN servers s ON ch.serverid = s.serverid ' +
+			'INNER JOIN users u ON tr.userid = u.userid ' +
+			'WHERE s.serverid = $1 ' +
+			'ORDER BY tr.format;', [this.guild.id]);
 
-			new RaterList(this.channel, this.author, this.guild, res.rows);
+			const page = new RaterList(this.channel, this.author, this.guild, res.rows);
+			await page.initialize(this.channel);
 		} else if (channel) {
-			let res = await pgPool.query(`SELECT u.name, u.discriminator, ch.channelname FROM teamraters tr ` +
-			`INNER JOIN users u ON tr.userid = u.userid ` +
-			`INNER JOIN channels ch ON tr.channelid = ch.channelid ` +
-			`WHERE tr.format = $1 AND tr.channelid = $2 ` +
-			`ORDER BY u.name, u.discriminator`, [format, channel.id]);
+			const res = await pgPool.query('SELECT u.name, u.discriminator, ch.channelname FROM teamraters tr ' +
+			'INNER JOIN users u ON tr.userid = u.userid ' +
+			'INNER JOIN channels ch ON tr.channelid = ch.channelid ' +
+			'WHERE tr.format = $1 AND tr.channelid = $2 ' +
+			'ORDER BY u.name, u.discriminator', [format, channel.id]);
 
-			new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			const page = new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			await page.initialize(this.channel);
 		} else {
-			let res = await pgPool.query(`SELECT DISTINCT u.name, u.discriminator FROM teamraters tr ` +
-			`INNER JOIN users u ON tr.userid = u.userid ` +
-			`WHERE tr.format = $1 ` +
-			`ORDER BY u.name, u.discriminator`, [format]);
+			const res = await pgPool.query('SELECT DISTINCT u.name, u.discriminator FROM teamraters tr ' +
+			'INNER JOIN users u ON tr.userid = u.userid ' +
+			'WHERE tr.format = $1 ' +
+			'ORDER BY u.name, u.discriminator', [format]);
 
-			new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			const page = new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			await page.initialize(this.channel);
 		}
 	}
 
-	public static help(): string {
+	static help(): string {
 		return `${prefix}listraters [format], [#channel], [server] - List the team raters for the provided format in the provided channel. If no channel is provided, the default channel is the current one.` +
-		`If no format is provided, the command will list all formats and team raters for the server.\n` +
+		'If no format is provided, the command will list all formats and team raters for the server.\n' +
 		`You can leave arguments blank in PMs (other than server) eg: ${prefix}listraters , , Server Name\n` +
-		`Requires: Kick Members Permissions\n` +
-		`Aliases: None`;
+		'Requires: Kick Members Permissions\n' +
+		'Aliases: None';
 	}
 }

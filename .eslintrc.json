@@ -1,0 +1,13 @@
+{
+    "extends": "@pkmn",
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "project": ["./tsconfig.json"]
+    },
+    "rules": {
+        "@typescript-eslint/indent": ["error", "tab", {"SwitchCase": 0}],
+        "max-len": ["error", {"code": 120, "ignoreStrings": true, "ignoreTemplateLiterals": true, "ignoreComments": true}],
+        "@typescript-eslint/no-floating-promises": ["error", {"ignoreVoid": true}],
+        "@typescript-eslint/restrict-template-expressions": ["off"]
+    }
+}
