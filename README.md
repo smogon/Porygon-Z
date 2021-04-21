@@ -33,16 +33,18 @@ TOKEN=BOT_TOKEN
 ERRCHANNEL=CHANNELID
 ADMINS=SNOWFLAKE,SNOWFLAKE,...
 PREFIX=!
+DBVERSION=max
 PGHOST=localhost
 PGPORT=5432
 PGUSER=porygonz
 PGPASSWORD=null
 PGDATABASE=porygonz
 ```
-- `BOT_TOKEN` is the token (your bot's "password") found on the bot tab of your application. 
+- `TOKEN` is the token (your bot's "password") found on the bot tab of your application.
 - `ERRCHANNEL` is the channel that will be used for the bot to report errors.
 - `OWNERS` is a comma serpated list of discord user snowflakes. You can get a user's snowflake by enabling developer mode in your discord account's user settings and then right clicking the user and selecting `Copy ID` from the dropdown. Owners will bypass all permission checks on all servers.
 - `PREFIX` is the bot's command prefix.
+- `DBVERSION` is an OPTIONAL enviroment variable that allows you to set the version of the database to use. Supported versions are found in `src/migrations/`. To select a given version, simply set this varible to that versions number (eg `4`). The default is `max` meaning if you don't include this variable the database will automatically update to the latest version if its not already there.
 - `PGHOST` is the postgresSQL server location.
 - `PGPORT` is the port for the postgresSQL server.
 - `PGUSER` is the postgresSQL server user account the bot will login to.

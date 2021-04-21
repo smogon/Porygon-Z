@@ -92,6 +92,49 @@ export class Whois extends BaseCommand {
 	}
 }
 
+export class WhoHas extends BaseCommand {
+	constructor(message: Discord.Message) {
+		super(message);
+	}
+
+	async execute() {
+		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied.');
+
+		if (!this.target.trim()) return this.reply(WhoHas.help());
+
+		const role = await this.getRole(this.target, true);
+		if (!role) return this.errorReply(`The role "${this.target}" was not found. Role names are Case Sensetive - Make sure your typing the role name exactly as it appears.`);
+
+		const embed: Discord.MessageEmbedOptions = {
+			color: 0x6194fd,
+			description: `Members with the role ${role.name}.`,
+			author: {
+				name: role.name,
+			},
+			fields: [
+				{
+					name: 'Users',
+					value: role.members.map(m => `<@${m.id}>`).join(', ') || 'No users have this role',
+				},
+			],
+			timestamp: Date.now(),
+			footer: {
+				text: `Role ID: ${role.id}`,
+			},
+		};
+
+		void this.channel.send({embed: embed});
+	}
+
+	static help(): string {
+		return `${prefix}whohas [role] - Get a list of all users with a given role. If there are multiple roles with the same please use a roleid as the argument.\n` +
+		'When using the role name as an argument it\n' +
+		'Requires: Kick Members Permissions\n' +
+		'Aliases: None';
+	}
+}
+
 /**
  * Sticky Roles
  */

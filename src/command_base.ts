@@ -230,7 +230,7 @@ export abstract class BaseCommand {
 	 * @param guild - Guild to use for the search, defaults to current.
 	 */
 	protected async getRole(id: string, allowName = false, guild?: Discord.Guild) {
-		if (!toID(id)) return;
+		if (!id.trim()) return;
 		if (!guild && this.guild) guild = this.guild;
 		if (!guild) return;
 		id = id.trim();
@@ -241,7 +241,7 @@ export abstract class BaseCommand {
 			id = id.substring(3, id.length - 1);
 		} else if (!/\d{18}/.test(id) && allowName) {
 			// Role Name
-			const targetRole = guild.roles.cache.find(role => toID(role.name) === toID(id));
+			const targetRole = guild.roles.cache.find(role => role.name === id.trim());
 			if (targetRole) id = targetRole.id;
 		}
 

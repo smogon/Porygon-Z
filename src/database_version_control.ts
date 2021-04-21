@@ -23,5 +23,5 @@ export async function updateDatabase() {
 
 	// Migrate to latest version of database
 	// this can be changed to a version if an explicit rollback is needed
-	await postgrator.migrate('max');
+	await postgrator.migrate(process.env.DBVERSION || 'max');
 }
