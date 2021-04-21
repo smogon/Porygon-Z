@@ -12,6 +12,8 @@ import fs = require('fs');
 import {prefix, ID, toID, pgPool} from './common';
 import {BaseCommand, BaseMonitor, DiscordChannel} from './command_base';
 import {updateDatabase} from './database_version_control';
+import * as child_process from 'child_process';
+
 interface Constructable<T> {
 	new(message: Discord.Message): T;
 	help(): string;
@@ -172,6 +174,11 @@ client.on('ready', () => void (async () => {
 			.map(cmd => (cmd as Constructable<BaseCommand>).init()),
 		...monitors.map(monitor => monitor.init()),
 	]);
+
+	// Notify systemmd that startup is complete if we are running through systemmd
+	if (process.env['INVOCATION_ID']) {
+		child_process.spawnSync('systemd-notify', ['--ready', `--pid=${process.pid}`]);
+	}
 })());
 
 // Fires when we get a new message from discord. We ignore messages that aren't commands or are from a bot.
