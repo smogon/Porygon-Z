@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-console.log('Building...');
-require('child_process').execSync(__dirname + '/node_modules/.bin/tsc', {stdio: 'inherit', cwd: __dirname});
 if (!process.env.TOKEN) {
 	console.log('Bot login token not found. Make sure you created a .env file and added: ');
 	console.log('TOKEN=your token here');

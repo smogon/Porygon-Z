@@ -8,7 +8,7 @@
     "lint": "eslint . --cache --ext .ts && tsc",
     "fix": "eslint . --cache --ext .ts --fix",
     "full-lint": "eslint . --cache --ext .ts --max-warnings 0",
-    "start": "node -r dotenv/config bot"
+    "start": "node build && node -r dotenv/config bot"
   },
   "repository": {
     "type": "git",
