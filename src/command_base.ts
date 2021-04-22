@@ -378,7 +378,7 @@ export abstract class ReactionPageTurner {
 		);
 		this.collector = new Discord.ReactionCollector(this.message, filter, this.options);
 
-		this.collector.on('collect', () => void this.collect.bind(this));
+		this.collector.on('collect', () => void this.collect());
 		this.collector.on('end', this.end.bind(this));
 
 		await this.initializeReactions();
