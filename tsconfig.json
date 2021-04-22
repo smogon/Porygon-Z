@@ -5,8 +5,7 @@
 		"outDir": "dist",
 		"sourceMap": true,
 		"incremental": true,
-		"strict": true,
-		"esModuleInterop": true
+		"strict": true
 	},
 	"include": [
 		"src/**/*.ts", "globals.ts"
