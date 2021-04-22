@@ -1,11 +1,13 @@
-import PG = require('pg');
+import * as PG from 'pg';
+import {Database, ExternalPostgresDatabase} from './lib/database';
 
 export type ID = '' | string & {__isID: true};
 
 // The prefix to all bot commands
 export const prefix = process.env.PREFIX || '$';
 
-export const pgPool = new PG.Pool();
+// Typed as Database because in unit tests, this will be changed to a MemoryPostgresDatabase
+export const database: Database = new ExternalPostgresDatabase(new PG.Pool());
 
 /**
  * toID - Turns anything into an ID (string with only lowercase alphanumeric characters)

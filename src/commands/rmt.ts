@@ -4,7 +4,7 @@
  * Also see src/monitors/rmt.ts
  */
 import Discord = require('discord.js');
-import {prefix, toID, pgPool} from '../common';
+import {prefix, toID, database} from '../common';
 import {BaseCommand, DiscordChannel, IAliasList, ReactionPageTurner} from '../command_base';
 
 export const aliases: IAliasList = {
@@ -180,25 +180,21 @@ export class AddTeamRater extends RmtCommand {
 			channel: channel,
 		});
 
-		this.worker = await pgPool.connect();
-
 		// Ensure this user isnt already a rater for this format
-		const res = await this.worker.query(
+		const res = await database.queryWithResults(
 			'SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3',
 			[user.id, format, channel.id]
 		);
-		if (res.rows.length) {
+		if (res.length) {
 			// This user is already a rater for this format
-			this.releaseWorker();
 			return this.errorReply(`${user} is already a team rater for ${format} in ${channel}.`);
 		}
 
 		// Add user to team raters
-		await this.worker.query(
+		await database.query(
 			'INSERT INTO teamraters (userid, format, channelid) VALUES ($1, $2, $3)',
 			[user.id, format, channel.id]
 		);
-		this.releaseWorker();
 
 		await this.reply(`${user.username} has been added as a team rater for ${format} in ${channel}`);
 	}
@@ -216,7 +212,7 @@ export class RemoveTeamRater extends RmtCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied');
 
 		// Validate arguments
@@ -240,17 +236,17 @@ export class RemoveTeamRater extends RmtCommand {
 		}
 
 		// Ensure this user is a rater for this format in this channel
-		const res = await pgPool.query(
+		const res = await database.queryWithResults(
 			'SELECT * FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3',
 			[user.id, format, channel.id]
 		);
-		if (!res.rows.length) {
+		if (!res.length) {
 			// This user is not a rater for this format in this channel
 			return this.errorReply(`${user.username} is not a team rater for ${format} in ${channel}.`);
 		}
 
 		// Remove user from team rater list
-		await pgPool.query(
+		await database.queryWithResults(
 			'DELETE FROM teamraters WHERE userid = $1 AND format = $2 AND channelid = $3',
 			[user.id, format, channel.id]
 		);
@@ -287,31 +283,40 @@ export class ListRaters extends RmtCommand {
 		const channel = this.getChannel(rawChannel, true, true, allowServerName);
 
 		if (!format) {
-			const res = await pgPool.query('SELECT DISTINCT u.name, u.discriminator, tr.format FROM teamraters tr ' +
-			'INNER JOIN channels ch ON tr.channelid = ch.channelid ' +
-			'INNER JOIN servers s ON ch.serverid = s.serverid ' +
-			'INNER JOIN users u ON tr.userid = u.userid ' +
-			'WHERE s.serverid = $1 ' +
-			'ORDER BY tr.format;', [this.guild.id]);
+			const res = await database.queryWithResults(
+				'SELECT DISTINCT u.name, u.discriminator, tr.format FROM teamraters tr ' +
+				'INNER JOIN channels ch ON tr.channelid = ch.channelid ' +
+				'INNER JOIN servers s ON ch.serverid = s.serverid ' +
+				'INNER JOIN users u ON tr.userid = u.userid ' +
+				'WHERE s.serverid = $1 ' +
+				'ORDER BY tr.format',
+				[this.guild.id]
+			);
 
-			const page = new RaterList(this.channel, this.author, this.guild, res.rows);
+			const page = new RaterList(this.channel, this.author, this.guild, res);
 			await page.initialize(this.channel);
 		} else if (channel) {
-			const res = await pgPool.query('SELECT u.name, u.discriminator, ch.channelname FROM teamraters tr ' +
-			'INNER JOIN users u ON tr.userid = u.userid ' +
-			'INNER JOIN channels ch ON tr.channelid = ch.channelid ' +
-			'WHERE tr.format = $1 AND tr.channelid = $2 ' +
-			'ORDER BY u.name, u.discriminator', [format, channel.id]);
+			const res = await database.queryWithResults(
+				'SELECT u.name, u.discriminator, ch.channelname FROM teamraters tr ' +
+				'INNER JOIN users u ON tr.userid = u.userid ' +
+				'INNER JOIN channels ch ON tr.channelid = ch.channelid ' +
+				'WHERE tr.format = $1 AND tr.channelid = $2 ' +
+				'ORDER BY u.name, u.discriminator',
+				[format, channel.id]
+			);
 
-			const page = new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			const page = new RaterList(this.channel, this.author, this.guild, res, format);
 			await page.initialize(this.channel);
 		} else {
-			const res = await pgPool.query('SELECT DISTINCT u.name, u.discriminator FROM teamraters tr ' +
-			'INNER JOIN users u ON tr.userid = u.userid ' +
-			'WHERE tr.format = $1 ' +
-			'ORDER BY u.name, u.discriminator', [format]);
+			const res = await database.queryWithResults(
+				'SELECT DISTINCT u.name, u.discriminator FROM teamraters tr ' +
+				'INNER JOIN users u ON tr.userid = u.userid ' +
+				'WHERE tr.format = $1 ' +
+				'ORDER BY u.name, u.discriminator',
+				[format]
+			);
 
-			const page = new RaterList(this.channel, this.author, this.guild, res.rows, format);
+			const page = new RaterList(this.channel, this.author, this.guild, res, format);
 			await page.initialize(this.channel);
 		}
 	}

@@ -4,7 +4,7 @@
  * channel activity monitors.
  */
 import Discord = require('discord.js');
-import {prefix, toID, pgPool} from '../common';
+import {prefix, toID, database} from '../common';
 import {BaseCommand, ReactionPageTurner, DiscordChannel, IAliasList} from '../command_base';
 
 const ENGLISH_MONTH_NAMES = [
@@ -200,9 +200,7 @@ export class Leaderboard extends BaseCommand {
 		}
 
 		query += ' GROUP BY u.name, u.discriminator ORDER BY SUM(l.lines) desc;';
-		const res = await pgPool.query(query, args);
-
-		return res.rows;
+		return database.queryWithResults(query, args);
 	}
 
 	async execute() {
@@ -269,9 +267,7 @@ export class ChannelLeaderboard extends BaseCommand {
 		}
 
 		query += ' GROUP BY ch.channelname ORDER BY SUM(cl.lines) desc;';
-		const res = await pgPool.query(query, args);
-
-		return res.rows;
+		return database.queryWithResults(query, args);
 	}
 
 	async execute() {
@@ -333,9 +329,7 @@ export class Linecount extends BaseCommand {
 		let query = `SELECT ${key ? key + ' AS time, ' : ''}SUM(l.lines) FROM lines l WHERE l.serverid = $1 AND l.userid = $2`;
 		if (key) query += ` GROUP BY ${key} ORDER BY ${key} desc;`;
 		const args = [this.guild.id, id];
-		const res = await pgPool.query(query, args);
-
-		return res.rows;
+		return database.queryWithResults(query, args);
 	}
 
 	async execute() {
@@ -401,9 +395,7 @@ export class ChannelLinecount extends BaseCommand {
 		query += ' WHERE ch.serverid = $1 AND ch.channelid = $2';
 		if (key) query += ` GROUP BY ${key} ORDER BY ${key} desc;`;
 		const args = [this.guild.id, id];
-		const res = await pgPool.query(query, args);
-
-		return res.rows;
+		return database.queryWithResults(query, args);
 	}
 
 	async execute() {

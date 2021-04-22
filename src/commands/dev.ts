@@ -4,7 +4,7 @@
  */
 import Discord = require('discord.js');
 import {shutdown} from '../app';
-import {prefix, pgPool} from '../common';
+import {prefix, database} from '../common';
 import {BaseCommand, IAliasList} from '../command_base';
 import * as child_process from 'child_process';
 let updateLock = false;
@@ -55,13 +55,13 @@ export class Query extends BaseCommand {
 
 	async execute() {
 		if (!(await this.can('EVAL'))) return this.errorReply('You do not have permission to do that.');
-		pgPool.query(this.target, (err, res) => {
-			if (err) {
-				void this.sendCode(`An error occured: ${err.toString()}`);
-			} else {
-				void this.sendCode(this.formatResponse(res.rows));
-			}
-		});
+
+		try {
+			const res = await database.queryWithResults(this.target, undefined);
+			await this.sendCode(this.formatResponse(res));
+		} catch (err) {
+			await this.sendCode(`An error occured: ${err.toString()}`);
+		}
 	}
 
 	private formatResponse(rows: any[]): string {
@@ -127,7 +127,7 @@ export class Shutdown extends BaseCommand {
 		}, 10000);
 
 		// empty the pool of database workers
-		await pgPool.end();
+		await database.destroy();
 
 		// exit
 		process.exit();
