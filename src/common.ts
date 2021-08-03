@@ -4,7 +4,7 @@ import {Database, ExternalPostgresDatabase} from './lib/database';
 export type ID = '' | string & {__isID: true};
 
 // The prefix to all bot commands
-export const prefix = process.env.PREFIX || '$';
+export const prefix = process.env.BOT_PREFIX || process.env.PREFIX || '$';
 
 // Typed as Database because in unit tests, this will be changed to a MemoryPostgresDatabase
 export const database: Database = new ExternalPostgresDatabase(new PG.Pool());

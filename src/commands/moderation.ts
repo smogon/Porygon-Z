@@ -160,9 +160,9 @@ abstract class StickyCommand extends BaseCommand {
 		return true;
 	}
 
-	async massStickyUpdate(role: Discord.Role, unsticky = false): Promise<void> {
+	async massStickyUpdate(role: Discord.Role, unsticky = false): Promise<{statement: string; args: string[]} | null> {
 		if (!this.guild || this.guild.id !== role.guild.id) throw new Error('Guild missmatch in sticky command');
-		if (!role.members.size) return; // No members have this role, so no database update needed
+		if (!role.members.size) return null; // No members have this role, so no database update needed
 
 		await this.guild.members.fetch();
 		let query = `UPDATE userlist SET sticky = ${unsticky ? 'array_remove' : 'array_append'}(sticky, $1) WHERE serverid = $2 AND userid IN (`;
@@ -177,7 +177,7 @@ abstract class StickyCommand extends BaseCommand {
 		query = query.slice(0, query.length - 2);
 		query += ');';
 
-		await database.query(query, args);
+		return {statement: query, args};
 	}
 }
 
@@ -229,10 +229,12 @@ export class Sticky extends StickyCommand {
 		// ---VALIDATION LINE---
 		// Make @role sticky (database update)
 		stickyRoles.push(role.id);
-		await database.withinTransaction([
-			{statement: 'UPDATE servers SET sticky = $1 WHERE serverid = $2', args: [stickyRoles, this.guild.id]},
-		]);
-		await this.massStickyUpdate(role); // I hope this works...
+
+		const queries = [{statement: 'UPDATE servers SET sticky = $1 WHERE serverid = $2', args: [stickyRoles, this.guild.id]}];
+		const stickyUpdate = await this.massStickyUpdate(role);
+		if (stickyUpdate) queries.push(stickyUpdate);
+		await database.withinTransaction(queries);
+
 		await this.reply(`The role "${role.name}" is now sticky! Members who leave and rejoin the server with this role will have it reassigned automatically.`);
 	}
 
@@ -321,10 +323,11 @@ export class Unsticky extends StickyCommand {
 		// ---VALIDATION LINE---
 		// Make @role not sticky (database update)
 		stickyRoles.splice(stickyRoles.indexOf(role.id), 1);
-		await database.withinTransaction([
-			{statement: 'UPDATE servers SET sticky = $1 WHERE serverid = $2', args: [stickyRoles, this.guild.id]},
-		]);
-		await this.massStickyUpdate(role, true);
+
+		const queries = [{statement: 'UPDATE servers SET sticky = $1 WHERE serverid = $2', args: [stickyRoles, this.guild.id]}];
+		const stickyUpdate = await this.massStickyUpdate(role, true);
+		if (stickyUpdate) queries.push(stickyUpdate);
+		await database.withinTransaction(queries);
 
 		// Return success message
 		await this.reply(`The role "${role.name}" is no longer sticky.`);
