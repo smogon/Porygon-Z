@@ -4,7 +4,7 @@
  * and administrators.
  */
 import Discord = require('discord.js');
-import {prefix, toID, pgPool} from '../common';
+import {prefix, toID, database} from '../common';
 import {BaseCommand} from '../command_base';
 import {client} from '../app';
 
@@ -37,7 +37,7 @@ export class Whois extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied.');
 
 		const user = this.getUser(this.target);
@@ -98,13 +98,13 @@ export class WhoHas extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('KICK_MEMBERS'))) return this.errorReply('Access Denied.');
 
 		if (!this.target.trim()) return this.reply(WhoHas.help());
 
 		const role = await this.getRole(this.target, true);
-		if (!role) return this.errorReply(`The role "${this.target}" was not found. Role names are Case Sensetive - Make sure your typing the role name exactly as it appears.`);
+		if (!role) return this.errorReply(`The role "${this.target}" was not found. Role names are case sensitive: make sure you're typing the role name exactly as it appears.`);
 
 		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
@@ -160,9 +160,9 @@ abstract class StickyCommand extends BaseCommand {
 		return true;
 	}
 
-	async massStickyUpdate(role: Discord.Role, unsticky = false): Promise<void> {
+	async massStickyUpdate(role: Discord.Role, unsticky = false): Promise<{statement: string; args: string[]} | null> {
 		if (!this.guild || this.guild.id !== role.guild.id) throw new Error('Guild missmatch in sticky command');
-		if (!role.members.size) return; // No members have this role, so no database update needed
+		if (!role.members.size) return null; // No members have this role, so no database update needed
 
 		await this.guild.members.fetch();
 		let query = `UPDATE userlist SET sticky = ${unsticky ? 'array_remove' : 'array_append'}(sticky, $1) WHERE serverid = $2 AND userid IN (`;
@@ -177,7 +177,7 @@ abstract class StickyCommand extends BaseCommand {
 		query = query.slice(0, query.length - 2);
 		query += ');';
 
-		await pgPool.query(query, args);
+		return {statement: query, args};
 	}
 }
 
@@ -188,7 +188,7 @@ export class Sticky extends StickyCommand {
 
 	async execute() {
 		if (!toID(this.target)) return this.reply(Sticky.help());
-		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply('Access Denied');
 		const bot = this.guild.me ? this.guild.me.user : null;
 		if (!bot) throw new Error('Bot user not found.');
@@ -216,34 +216,25 @@ export class Sticky extends StickyCommand {
 		}
 
 		// Validate @role is not already sticky (database query)
-		this.worker = await pgPool.connect();
-		const res = await this.worker.query('SELECT sticky FROM servers WHERE serverid = $1', [this.guild.id]);
-		if (!res.rows.length) {
+		const res = await database.queryWithResults('SELECT sticky FROM servers WHERE serverid = $1', [this.guild.id]);
+		if (!res.length) {
 			throw new Error(`Unable to find sticky roles in database for guild: ${this.guild.name} (${this.guild.id})`);
 		}
-		const stickyRoles: string[] = res.rows[0].sticky;
+		const stickyRoles: string[] = res[0].sticky;
 
 		if (stickyRoles.includes(role.id)) {
-			this.releaseWorker();
 			return this.errorReply('That role is already sticky!');
 		}
 
 		// ---VALIDATION LINE---
 		// Make @role sticky (database update)
 		stickyRoles.push(role.id);
-		try {
-			await this.worker.query('BEGIN');
-			await this.worker.query('UPDATE servers SET sticky = $1 WHERE serverid = $2', [stickyRoles, this.guild.id]);
-			// Find all users with @role and perform database update so role is now sticky for them
-			await this.massStickyUpdate(role);
-			await this.worker.query('COMMIT');
-			this.releaseWorker();
-		} catch (e) {
-			await this.worker.query('ROLLBACK');
-			this.releaseWorker();
-			throw e;
-		}
-		// Return success message
+
+		const queries = [{statement: 'UPDATE servers SET sticky = $1 WHERE serverid = $2', args: [stickyRoles, this.guild.id]}];
+		const stickyUpdate = await this.massStickyUpdate(role);
+		if (stickyUpdate) queries.push(stickyUpdate);
+		await database.withinTransaction(queries);
+
 		await this.reply(`The role "${role.name}" is now sticky! Members who leave and rejoin the server with this role will have it reassigned automatically.`);
 	}
 
@@ -255,12 +246,12 @@ export class Sticky extends StickyCommand {
 
 	static async init(): Promise<void> {
 		// This init is for all four sticky role commands
-		const res = await pgPool.query('SELECT serverid, sticky FROM servers');
-		if (!res.rows.length) return; // No servers?
+		const res = await database.queryWithResults('SELECT serverid, sticky FROM servers');
+		if (!res.length) return; // No servers?
 
-		for (const {sticky: stickyRoles, serverid} of res.rows) {
+		for (const {sticky: stickyRoles, serverid} of res) {
 			// Get list of users and their sticky roles
-			const serverRes = await pgPool.query('SELECT userid, sticky FROM userlist WHERE serverid = $1', [serverid]);
+			const serverRes = await database.queryWithResults('SELECT userid, sticky FROM userlist WHERE serverid = $1', [serverid]);
 			const server = client.guilds.cache.get(serverid);
 			if (!server) {
 				console.error('ERR NO SERVER FOUND');
@@ -268,7 +259,7 @@ export class Sticky extends StickyCommand {
 			}
 			await server.members.fetch();
 
-			for (const {userid, sticky} of serverRes.rows) {
+			for (const {userid, sticky} of serverRes) {
 				const member = server.members.cache.get(userid);
 				if (!member) continue; // User left the server, but has not re-joined so we can't do anything but wait.
 				// Check which of this member's roles are sticky
@@ -277,7 +268,7 @@ export class Sticky extends StickyCommand {
 				// Compare member's current sticky roles to the ones in the database. If they match, do nothing.
 				const userStickyRoles: string[] = sticky;
 				if (!roles.length && userStickyRoles.length) {
-					await pgPool.query(
+					await database.query(
 						'UPDATE userlist SET sticky = $1 WHERE serverid = $2 AND userid = $3',
 						[roles, serverid, member.user.id]
 					);
@@ -287,7 +278,7 @@ export class Sticky extends StickyCommand {
 				if (roles.every(r => userStickyRoles.includes(r))) continue;
 
 				// Update database with new roles
-				await pgPool.query(
+				await database.queryWithResults(
 					'UPDATE userlist SET sticky = $1 WHERE serverid = $2 AND userid = $3',
 					[roles, serverid, member.user.id]
 				);
@@ -303,7 +294,7 @@ export class Unsticky extends StickyCommand {
 
 	async execute() {
 		if (!toID(this.target)) return this.reply(Unsticky.help());
-		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply('Access Denied');
 
 		// Validate @role exists
@@ -319,33 +310,25 @@ export class Unsticky extends StickyCommand {
 		}
 
 		// Validate @role is sticky (database query)
-		this.worker = await pgPool.connect();
-		const res = await this.worker.query('SELECT sticky FROM servers WHERE serverid = $1', [this.guild.id]);
-		if (!res.rows.length) {
+		const res = await database.queryWithResults('SELECT sticky FROM servers WHERE serverid = $1', [this.guild.id]);
+		if (!res.length) {
 			throw new Error(`Unable to find sticky roles in database for guild: ${this.guild.name} (${this.guild.id})`);
 		}
-		const stickyRoles: string[] = res.rows[0].sticky;
+		const stickyRoles: string[] = res[0].sticky;
 
 		if (!stickyRoles.includes(role.id)) {
-			this.releaseWorker();
 			return this.errorReply('That role is not sticky!');
 		}
 
 		// ---VALIDATION LINE---
 		// Make @role not sticky (database update)
 		stickyRoles.splice(stickyRoles.indexOf(role.id), 1);
-		try {
-			await this.worker.query('BEGIN');
-			await this.worker.query('UPDATE servers SET sticky = $1 WHERE serverid = $2', [stickyRoles, this.guild.id]);
-			// Find all users with @role and perform database update so role is no longer sticky for them
-			await this.massStickyUpdate(role, true);
-			await this.worker.query('COMMIT');
-			this.releaseWorker();
-		} catch (e) {
-			await this.worker.query('ROLLBACK');
-			this.releaseWorker();
-			throw e;
-		}
+
+		const queries = [{statement: 'UPDATE servers SET sticky = $1 WHERE serverid = $2', args: [stickyRoles, this.guild.id]}];
+		const stickyUpdate = await this.massStickyUpdate(role, true);
+		if (stickyUpdate) queries.push(stickyUpdate);
+		await database.withinTransaction(queries);
+
 		// Return success message
 		await this.reply(`The role "${role.name}" is no longer sticky.`);
 	}
@@ -363,20 +346,16 @@ export class EnableLogs extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('MANAGE_GUILD'))) return this.errorReply('Access Denied');
-		this.worker = await pgPool.connect();
 
-		const res = await this.worker.query('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
-		if (res.rows[0].logchannel) {
-			return this.errorReply(`This server is already set up to log to <#${res.rows[0].logchannel}>.`);
+		const res = await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
+		if (res[0].logchannel) {
+			return this.errorReply(`This server is already set up to log to <#${res[0].logchannel}>.`);
 		}
 
-		await this.worker.query('UPDATE servers SET logchannel = $1 WHERE serverid = $2', [this.channel.id, this.guild.id]);
+		await database.query('UPDATE servers SET logchannel = $1 WHERE serverid = $2', [this.channel.id, this.guild.id]);
 		await this.reply('Server events will now be logged to this channel.');
-
-		this.worker.release();
-		this.worker = null;
 	}
 
 	static help(): string {
@@ -392,18 +371,14 @@ export class DisableLogs extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('MANAGE_GUILD'))) return this.errorReply('Access Denied');
-		this.worker = await pgPool.connect();
 
-		const res = await this.worker.query('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
-		if (!res.rows[0].logchannel) return this.errorReply('This server is not setup to log messages to a log channel.');
+		const res = await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
+		if (!res[0].logchannel) return this.errorReply('This server is not setup to log messages to a log channel.');
 
-		await this.worker.query('UPDATE servers SET logchannel = $1 WHERE serverid = $2', [null, this.guild.id]);
+		await database.query('UPDATE servers SET logchannel = $1 WHERE serverid = $2', [null, this.guild.id]);
 		await this.reply('Server events will no longer be logged to this channel.');
-
-		this.worker.release();
-		this.worker = null;
 	}
 
 	static help(): string {

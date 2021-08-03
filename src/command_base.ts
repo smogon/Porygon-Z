@@ -5,8 +5,7 @@
  * execution in general.
  */
 import Discord = require('discord.js');
-import {prefix, toID, pgPool} from './common';
-import {PoolClient} from 'pg';
+import {prefix, toID, database} from './common';
 import {client, verifyData} from './app';
 
 export type DiscordChannel = Discord.TextChannel | Discord.NewsChannel;
@@ -32,7 +31,6 @@ export abstract class BaseCommand {
 	protected author: Discord.User;
 	protected channel: DiscordChannel;
 	protected guild: Discord.Guild | null;
-	protected worker: PoolClient | null;
 	protected isMonitor: boolean;
 
 	/**
@@ -46,7 +44,6 @@ export abstract class BaseCommand {
 		this.author = message.author;
 		this.channel = (message.channel as DiscordChannel);
 		this.guild = message.guild;
-		this.worker = null;
 		this.isMonitor = false;
 	}
 
@@ -293,21 +290,9 @@ export abstract class BaseCommand {
 	 */
 	protected async sendLog(msg: string | Discord.MessageEmbed): Promise<Discord.Message | void> {
 		if (!toID(msg) || !this.guild) return;
-		const res = await pgPool.query('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
-		const channel = this.getChannel(res.rows[0].logchannel, false, false);
+		const res = await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
+		const channel = this.getChannel(res[0].logchannel, false, false);
 		if (channel) await channel.send(msg);
-	}
-
-	/**
-	 * Used by app.ts to release a PoolClient in the event
-	 * a command using one crashes
-	 */
-	releaseWorker(warn = false): void {
-		if (this.worker) {
-			if (warn) console.warn(`Releasing PG worker for ${this.isMonitor ? 'monitor' : 'command'}: ${this.cmd}`);
-			this.worker.release();
-			this.worker = null;
-		}
 	}
 }
 

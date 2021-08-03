@@ -4,13 +4,13 @@
  * Exceptions are located in app.ts
  */
 import Discord = require('discord.js');
-import {pgPool} from './common';
+import {database} from './common';
 import {client} from './app';
 
 async function getLogChannel(guild: Discord.Guild): Promise<Discord.TextChannel | void> {
-	const res = await pgPool.query('SELECT logchannel FROM servers WHERE serverid = $1', [guild.id]);
-	if (!res.rows.length) return;
-	const channel = client.channels.cache.get(res.rows[0].logchannel);
+	const res = await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [guild.id]);
+	if (!res.length) return;
+	const channel = client.channels.cache.get(res[0].logchannel);
 	if (!channel) return;
 	return (channel as Discord.TextChannel);
 }
@@ -178,48 +178,42 @@ client.on('guildMemberAdd', (m: Discord.GuildMember | Discord.PartialGuildMember
 		const guild = member.guild;
 		const bot = guild.me ? await guild.members.fetch(guild.me.user) : null;
 		if (!bot) throw new Error('Bot user not found.');
-		const worker = await pgPool.connect();
 
 		// try/catch so we don't leave a database worker out of the pool incase of an error
-		try {
-			const res = await worker.query(
-				'SELECT sticky FROM userlist WHERE serverid = $1 AND userid = $2',
-				[guild.id, member.user.id]
-			);
-			if (!res.rows.length) return; // User was not in database yet, which is OK here. Proably a first time join.
-			const sticky: string[] = res.rows[0].sticky;
-			if (!sticky.length) return; // User rejoined and had 0 sticky roles.
+		const res = await database.queryWithResults(
+			'SELECT sticky FROM userlist WHERE serverid = $1 AND userid = $2',
+			[guild.id, member.user.id]
+		);
+		if (!res.length) return; // User was not in database yet, which is OK here. Proably a first time join.
+		const sticky: string[] = res[0].sticky;
+		if (!sticky.length) return; // User rejoined and had 0 sticky roles.
 
-			// Re-assign sticky roles
-			if (!bot.hasPermission('MANAGE_ROLES')) {
-			// Bot can't assign roles due to lack of permissions
+		// Re-assign sticky roles
+		if (!bot.hasPermission('MANAGE_ROLES')) {
+		// Bot can't assign roles due to lack of permissions
+			const channel = await getLogChannel(guild);
+			const msg = '[WARN] Bot tried to assign sticky (persistant) roles to a user joining the server, but lacks the MANAGE_ROLES permission.';
+			if (channel) await channel.send(msg);
+			return;
+		}
+
+		await guild.roles.fetch();
+		for (const roleID of sticky) {
+			const role = guild.roles.cache.get(roleID);
+			if (!role) {
+				// ??? Should never happen
+				throw new Error(`Unable to find sticky role with ID ${roleID} in server ${guild.name} (${guild.id})`);
+			}
+
+			if (!(await canAssignRole(bot, role))) {
+			// Bot can no longer assign the role.
 				const channel = await getLogChannel(guild);
-				const msg = '[WARN] Bot tried to assign sticky (persistant) roles to a user joining the server, but lacks the MANAGE_ROLES permission.';
+				const msg = `[WARN] Bot tried to assign sticky (persistant) role "${role.name}" to a user joining the server, but lacks permissions to assign this specific role.`;
 				if (channel) await channel.send(msg);
-				return;
+				continue;
 			}
 
-			await guild.roles.fetch();
-			for (const roleID of sticky) {
-				const role = guild.roles.cache.get(roleID);
-				if (!role) {
-					// ??? Should never happen
-					throw new Error(`Unable to find sticky role with ID ${roleID} in server ${guild.name} (${guild.id})`);
-				}
-
-				if (!(await canAssignRole(bot, role))) {
-				// Bot can no longer assign the role.
-					const channel = await getLogChannel(guild);
-					const msg = `[WARN] Bot tried to assign sticky (persistant) role "${role.name}" to a user joining the server, but lacks permissions to assign this specific role.`;
-					if (channel) await channel.send(msg);
-					continue;
-				}
-
-				await member.roles.add(role, 'Assigning sticky role to returning user');
-			}
-		} catch (e) {
-			worker.release();
-			throw e;
+			await member.roles.add(role, 'Assigning sticky role to returning user');
 		}
 	})(m as Discord.GuildMember);
 });
@@ -227,26 +221,20 @@ client.on('guildMemberAdd', (m: Discord.GuildMember | Discord.PartialGuildMember
 client.on('roleDelete', (r: Discord.Role) => {
 	void (async (role) => {
 		const guild = role.guild;
-		const worker = await pgPool.connect();
 
-		try {
-			const res = await worker.query('SELECT sticky FROM servers WHERE serverid = $1', [guild.id]);
-			let sticky = res.rows[0].sticky;
-			if (!sticky.includes(role.id)) return; // Deleted role is not sticky
+		const res = await database.queryWithResults('SELECT sticky FROM servers WHERE serverid = $1', [guild.id]);
+		let sticky = res[0].sticky;
+		if (!sticky.includes(role.id)) return; // Deleted role is not sticky
 
-			// Remove references to sticky role
-			sticky = sticky.splice(sticky.indexOf(role.id), 1);
-			await worker.query('UPDATE servers SET sticky = $1 WHERE serverid = $2', [sticky, guild.id]);
+		// Remove references to sticky role
+		sticky = sticky.splice(sticky.indexOf(role.id), 1);
+		await database.query('UPDATE servers SET sticky = $1 WHERE serverid = $2', [sticky, guild.id]);
 
-			// Remove role from userlist
-			await worker.query(
-				'UPDATE userlist SET sticky = array_remove(sticky, $1) WHERE serverid = $2 AND sticky @> ARRAY[$1]',
-				[role.id, guild.id]
-			);
-		} catch (e) {
-			worker.release();
-			throw e;
-		}
+		// Remove role from userlist
+		await database.query(
+			'UPDATE userlist SET sticky = array_remove(sticky, $1) WHERE serverid = $2 AND sticky @> ARRAY[$1]',
+			[role.id, guild.id]
+		);
 	})(r);
 });
 
@@ -259,21 +247,19 @@ client.on('guildMemberUpdate', (oldM: Discord.GuildMember | Discord.PartialGuild
 
 		if (!addedRoles.length && !removedRoles.length) return;
 
-		const stickyRoles: string[] = (
-			await pgPool.query('SELECT sticky FROM servers WHERE serverid = $1', [guild.id])
-		).rows[0].sticky;
+		const stickyRoles: string[] = (await database.queryWithResults('SELECT sticky FROM servers WHERE serverid = $1', [guild.id]))[0].sticky;
 		addedRoles = addedRoles.filter(role => stickyRoles.includes(role.id));
 		removedRoles = removedRoles.filter(role => stickyRoles.includes(role.id));
 
 		if (!addedRoles.length && !removedRoles.length) return;
 
 		let userRoles: string[] = (
-			await pgPool.query('SELECT sticky FROM userlist WHERE serverid = $1 AND userid = $2', [guild.id, newMember.user.id])
-		).rows[0].sticky;
+			await database.queryWithResults('SELECT sticky FROM userlist WHERE serverid = $1 AND userid = $2', [guild.id, newMember.user.id])
+		)[0].sticky;
 		userRoles = userRoles.filter(roleID => !removedRoles.map(r => r.id).includes(roleID));
 		userRoles = userRoles.concat(addedRoles.map(r => r.id));
 
-		await pgPool.query(
+		await database.queryWithResults(
 			'UPDATE userlist SET sticky = $1 WHERE serverid = $2 AND userid = $3',
 			[userRoles, guild.id, newMember.user.id]
 		);

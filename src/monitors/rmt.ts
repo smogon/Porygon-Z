@@ -5,7 +5,7 @@
  * Also see src/commands/rmt.ts
  */
 import Discord = require('discord.js');
-import {toID, pgPool} from '../common';
+import {toID, database} from '../common';
 import {BaseMonitor} from '../command_base';
 
 const cooldowns: {[channelid: string]: {[formatid: string]: number}} = {};
@@ -59,29 +59,29 @@ export class TeamRatingMonitor extends BaseMonitor {
 	}
 
 	async shouldExecute() {
-		let res = await pgPool.query('SELECT channelid FROM teamraters WHERE channelid = $1', [this.channel.id]);
-		if (!res.rows.length) return false; // This channel isn't setup for team rating.
+		let res = await database.queryWithResults('SELECT channelid FROM teamraters WHERE channelid = $1', [this.channel.id]);
+		if (!res.length) return false; // This channel isn't setup for team rating.
 
 		if (!this.teamPasteRegexp.test(this.target)) return false;
 		const format = this.formatRegexp.exec(this.target);
 		if (!format || !format.length) return false;
 		this.format = this.transformFormat(toID(format[0]));
 		if (!this.format.startsWith('gen')) return false;
-		res = await pgPool.query(
+		res = await database.queryWithResults(
 			'SELECT userid FROM teamraters WHERE format = $1 AND channelid = $2',
 			[this.format, this.channel.id]
 		);
-		if (!res.rows.length) {
+		if (!res.length) {
 			return false; // No results
 		} else {
-			res.rows = res.rows.filter(r => {
+			res = res.filter(r => {
 				const user = this.getUser(r.userid);
 				if (!user || user.presence.status === 'offline') return false;
 				return true;
 			});
 
-			if (!res.rows.length) return false;
-			this.raters = res.rows.map(r => `<@${r.userid as string}>`);
+			if (!res.length) return false;
+			this.raters = res.map(r => `<@${r.userid as string}>`);
 		}
 		const cooldown = cooldowns[this.channel.id]?.[this.format];
 		if (cooldown && cooldown + (1000 * 60 * 60) >= Date.now()) return false;

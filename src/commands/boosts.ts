@@ -4,17 +4,15 @@
  */
 import Discord = require('discord.js');
 import {client, verifyData} from '../app';
-import {prefix, pgPool} from '../common';
+import {prefix, database} from '../common';
 import {BaseCommand, ReactionPageTurner, DiscordChannel} from '../command_base';
 
 async function updateBoosters() {
-	const worker = await pgPool.connect();
-
 	for (const [guildId, guild] of client.guilds.cache) {
-		const res = await worker.query('SELECT userid FROM userlist WHERE serverid = $1 AND boosting IS NOT NULL', [guildId]);
-		const boosting = res.rows.map(r => r.userid);
-		const logchannelResult = await pgPool.query('SELECT logchannel FROM servers WHERE serverid = $1', [guildId]);
-		const logChannel = client.channels.cache.get(logchannelResult.rows[0].logchannel) as DiscordChannel;
+		const res = await database.queryWithResults('SELECT userid FROM userlist WHERE serverid = $1 AND boosting IS NOT NULL', [guildId]);
+		const boosting = res.map(r => r.userid);
+		const logchannelResult = await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [guildId]);
+		const logChannel = client.channels.cache.get(logchannelResult[0].logchannel) as DiscordChannel;
 		await guild.members.fetch();
 
 		for (const [id, gm] of guild.members.cache) {
@@ -30,23 +28,23 @@ async function updateBoosters() {
 				});
 
 				// Check if booster is in users table/userlist
-				if (!(await worker.query('SELECT userid FROM users WHERE userid = $1', [id])).rows.length) {
-					await worker.query(
+				if (!(await database.queryWithResults('SELECT userid FROM users WHERE userid = $1', [id])).length) {
+					await database.query(
 						'INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)',
 						[gm.user.id, gm.user.username, gm.user.discriminator]
 					);
 				}
 
-				const users = await worker.query('SELECT userid FROM userlist WHERE userid = $1 AND serverid = $2', [id, guildId]);
-				if (!users.rows.length) {
+				const users = await database.queryWithResults('SELECT userid FROM userlist WHERE userid = $1 AND serverid = $2', [id, guildId]);
+				if (!users.length) {
 					// Insert with update
-					await worker.query(
+					await database.query(
 						'INSERT INTO userlist (serverid, userid, boosting) VALUES ($1, $2, $3)',
 						[guildId, id, gm.premiumSince]
 					);
 				} else {
 					// Just update
-					await worker.query(
+					await database.query(
 						'UPDATE userlist SET boosting = $1 WHERE serverid = $2 AND userid = $3',
 						[gm.premiumSince, guildId, id]
 					);
@@ -54,20 +52,18 @@ async function updateBoosters() {
 				await logChannel?.send(`<@${id}> has started boosting!`);
 			} else {
 				if (!boosting.includes(id)) continue; // Was not bosting before
-				await worker.query('UPDATE userlist SET boosting = NULL WHERE serverid = $1 AND userid = $2', [guildId, id]);
+				await database.query('UPDATE userlist SET boosting = NULL WHERE serverid = $1 AND userid = $2', [guildId, id]);
 				await logChannel?.send(`<@${id}> is no longer boosting.`);
 				boosting.splice(boosting.indexOf(id), 1);
 			}
 		}
 
 		// Anyone left in boosting left the server and is no longer boosting
-		for (const desterter of boosting) {
-			await worker.query('UPDATE userlist SET boosting = NULL WHERE serverid = $1 AND userid = $2', [guildId, desterter]);
-			await logChannel?.send(`<@${desterter}> is no longer boosting because they left the server.`);
+		for (const deserter of boosting) {
+			await database.query('UPDATE userlist SET boosting = NULL WHERE serverid = $1 AND userid = $2', [guildId, deserter]);
+			await logChannel?.send(`<@${deserter}> is no longer boosting because they left the server.`);
 		}
 	}
-
-	worker.release();
 
 	// Schedule next boost check
 	const nextCheck = new Date();
@@ -133,17 +129,20 @@ export class Boosters extends BaseCommand {
 	}
 
 	async execute() {
-		if (!this.guild) return this.errorReply('This command is not mean\'t to be used in PMs.');
+		if (!this.guild) return this.errorReply('This command is not meant to be used in PMs.');
 		if (!(await this.can('MANAGE_ROLES'))) return this.errorReply('Access Denied.');
 
-		const res = await pgPool.query('SELECT u.name, u.discriminator, ul.boosting ' +
+		const res = await database.queryWithResults(
+			'SELECT u.name, u.discriminator, ul.boosting ' +
 			'FROM users u ' +
 			'INNER JOIN userlist ul ON u.userid = ul.userid ' +
 			'INNER JOIN servers s ON s.serverid = ul.serverid ' +
 			'WHERE s.serverid = $1 AND ul.boosting IS NOT NULL ' +
-			'ORDER BY ul.boosting', [this.guild.id]);
+			'ORDER BY ul.boosting',
+			[this.guild.id]
+		);
 
-		const page = new BoostPage(this.channel, this.author, this.guild, res.rows);
+		const page = new BoostPage(this.channel, this.author, this.guild, res);
 		await page.initialize(this.channel);
 	}
 

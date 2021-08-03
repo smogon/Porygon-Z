@@ -4,7 +4,7 @@
  * Also see src/commands/activity.ts
  */
 import Discord = require('discord.js');
-import {pgPool} from '../common';
+import {database} from '../common';
 import {BaseMonitor} from '../command_base';
 // Number of days to keep lines for before pruning
 const LINE_PRUNE_CUTOFF = 60;
@@ -16,36 +16,16 @@ async function prune() {
 	const cutoff = new Date();
 	cutoff.setDate(cutoff.getDate() - LINE_PRUNE_CUTOFF);
 	cutoff.setHours(0, 0, 0, 0);
-	const worker = await pgPool.connect();
 
-	try {
-		await worker.query('BEGIN');
+	await database.withinTransaction([
+		{statement: 'DELETE FROM lines WHERE logdate < $1', args: [cutoff]},
+		{statement: 'DELETE FROM channellines WHERE logdate < $1', args: [cutoff]},
+	]);
 
-		await worker.query('DELETE FROM lines WHERE logdate < $1', [cutoff]);
-		await worker.query('DELETE FROM channellines WHERE logdate < $1', [cutoff]);
-
-		await worker.query('COMMIT');
-		worker.release();
-
-		const nextPrune = new Date();
-		nextPrune.setDate(nextPrune.getDate() + 1);
-		nextPrune.setHours(0, 0, 0, 0);
-		setTimeout(() => {
-			void prune();
-		}, nextPrune.getTime() - Date.now());
-	} catch (e) {
-		await worker.query('ROLLBACK');
-		worker.release();
-
-		const nextPrune = new Date();
-		nextPrune.setDate(nextPrune.getDate() + 1);
-		nextPrune.setHours(0, 0, 0, 0);
-		setTimeout(() => {
-			void prune();
-		}, nextPrune.getTime() - Date.now());
-
-		throw e;
-	}
+	const nextPrune = new Date();
+	nextPrune.setDate(nextPrune.getDate() + 1);
+	nextPrune.setHours(0, 0, 0, 0);
+	setTimeout(() => void prune(), nextPrune.getTime() - Date.now());
 }
 
 // Prune any old logs on startup, also starts the timer for pruning
@@ -78,7 +58,6 @@ export class ActivityMonitor extends BaseMonitor {
 			// Should never happen, monitors do not run in PMs
 			throw new Error('Activity monitor attempted to run outide of a guild.');
 		}
-		this.worker = await pgPool.connect();
 		const date = new Date(); // Log date
 
 		await this.verifyData({
@@ -88,43 +67,40 @@ export class ActivityMonitor extends BaseMonitor {
 		});
 
 		// Insert user line info
-		let res = await this.worker.query(
+		let res = await database.queryWithResults(
 			'SELECT * FROM lines WHERE userid = $1 AND logdate = $2 AND serverid = $3',
 			[this.author.id, date, this.guild.id]
 		);
-		if (!res.rows.length) {
+		if (!res.length) {
 			// Insert new row
-			await this.worker.query(
+			await database.queryWithResults(
 				'INSERT INTO lines (userid, logdate, serverid, lines) VALUES ($1, $2, $3, 1)',
 				[this.author.id, date, this.guild.id]
 			);
 		} else {
 			// update row
-			await this.worker.query(
+			await database.query(
 				'UPDATE lines SET lines = lines + 1 WHERE userid = $1 AND logdate = $2 AND serverid = $3',
 				[this.author.id, date, this.guild.id]
 			);
 		}
 
-		res = await this.worker.query(
+		res = await database.queryWithResults(
 			'SELECT * FROM channellines WHERE channelid = $1 AND logdate = $2',
 			[this.channel.id, date]
 		);
-		if (!res.rows.length) {
+		if (!res.length) {
 			// Insert new row
-			await this.worker.query(
+			await database.queryWithResults(
 				'INSERT INTO channellines (channelid, logdate, lines) VALUES ($1, $2, 1)',
 				[this.channel.id, date]
 			);
 		} else {
 			// Update row
-			await this.worker.query(
+			await database.queryWithResults(
 				'UPDATE channellines SET lines = lines + 1 WHERE channelid = $1 AND logdate = $2',
 				[this.channel.id, date]
 			);
 		}
-
-		this.worker.release();
-		this.worker = null;
 	}
 }

@@ -23,8 +23,10 @@
     "discord.js": "^12.1.1",
     "dotenv": "^8.1.0",
     "eslint-plugin-jest": "^24.3.5",
-    "pg": "^7.12.1",
+    "pg": "^8.0.3",
+    "pg-mem": "^1.9.6",
     "postgrator": "^4.0.1",
+    "sqlutils": "^1.2.1",
     "typescript": "^4.1.5"
   },
   "devDependencies": {

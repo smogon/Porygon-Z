@@ -9,7 +9,7 @@
 import Discord = require('discord.js');
 import fs = require('fs');
 
-import {prefix, ID, toID, pgPool} from './common';
+import {prefix, ID, toID, database} from './common';
 import {BaseCommand, BaseMonitor, DiscordChannel} from './command_base';
 import {updateDatabase} from './database_version_control';
 import * as child_process from 'child_process';
@@ -54,14 +54,12 @@ const userlist = new Set<string>();
 
 export async function verifyData(data: Discord.Message | IDatabaseInsert) {
 	if (lockdown) return;
-	let worker = null;
 
 	// Server
 	if (data.guild && !servers.has(data.guild.id)) {
-		if (!worker) worker = await pgPool.connect();
-		const res = await worker.query('SELECT * FROM servers WHERE serverid = $1', [data.guild.id]);
-		if (!res.rows.length) {
-			await worker.query(
+		const res = await database.queryWithResults('SELECT * FROM servers WHERE serverid = $1', [data.guild.id]);
+		if (!res.length) {
+			await database.query(
 				'INSERT INTO servers (serverid, servername, logchannel, sticky) VALUES ($1, $2, $3, $4)',
 				[data.guild.id, data.guild.name, null, []]
 			);
@@ -72,10 +70,9 @@ export async function verifyData(data: Discord.Message | IDatabaseInsert) {
 	// Channel
 	if (data.guild && data.channel && ['text', 'news'].includes(data.channel.type) && !channels.has(data.channel.id)) {
 		const channel = (data.channel as Discord.TextChannel | Discord.NewsChannel);
-		if (!worker) worker = await pgPool.connect();
-		const res = await worker.query('SELECT * FROM channels WHERE channelid = $1', [channel.id]);
-		if (!res.rows.length) {
-			await worker.query(
+		const res = await database.queryWithResults('SELECT * FROM channels WHERE channelid = $1', [channel.id]);
+		if (!res.length) {
+			await database.query(
 				'INSERT INTO channels (channelid, channelname, serverid) VALUES ($1, $2, $3)',
 				[channel.id, channel.name, data.guild.id]
 			);
@@ -85,10 +82,9 @@ export async function verifyData(data: Discord.Message | IDatabaseInsert) {
 
 	// User
 	if (data.author && !users.has(data.author.id)) {
-		if (!worker) worker = await pgPool.connect();
-		const res = await worker.query('SELECT * FROM users WHERE userid = $1', [data.author.id]);
-		if (!res.rows.length) {
-			await worker.query(
+		const res = await database.queryWithResults('SELECT * FROM users WHERE userid = $1', [data.author.id]);
+		if (!res.length) {
+			await database.query(
 				'INSERT INTO users (userid, name, discriminator) VALUES ($1, $2, $3)',
 				[data.author.id, data.author.username, data.author.discriminator]
 			);
@@ -102,13 +98,12 @@ export async function verifyData(data: Discord.Message | IDatabaseInsert) {
 		await data.guild.members.fetch();
 		const userInServer = data.guild.members.cache.has(data.author.id);
 		if (userInServer) {
-			if (!worker) worker = await pgPool.connect();
-			const res = await worker.query(
+			const res = await database.queryWithResults(
 				'SELECT * FROM userlist WHERE serverid = $1 AND userid = $2',
 				[data.guild.id, data.author.id]
 			);
-			if (!res.rows.length) {
-				await worker.query(
+			if (!res.length) {
+				await database.query(
 					'INSERT INTO userlist (serverid, userid, boosting, sticky) VALUES ($1, $2, $3, $4)',
 					[data.guild.id, data.author.id, null, []]
 				);
@@ -116,8 +111,6 @@ export async function verifyData(data: Discord.Message | IDatabaseInsert) {
 			userlist.add(data.guild.id + ',' + data.author.id);
 		}
 	}
-
-	if (worker) worker.release();
 }
 
 export const client = new Discord.Client();
@@ -199,8 +192,6 @@ client.on('message', (m) => void (async msg => {
 			} catch (e) {
 				await onError(e, 'A chat monitor crashed: ');
 			}
-			// Release any workers regardless of the result
-			monitor.releaseWorker(true);
 		}
 		return;
 	}
@@ -225,8 +216,6 @@ client.on('message', (m) => void (async msg => {
 			'\u274C - An error occured while trying to run your command. The error has been logged, and we will fix it soon.'
 		);
 	}
-	// Release any workers regardless of the result
-	cmd.releaseWorker(true);
 })(m));
 
 // Setup crash handlers
