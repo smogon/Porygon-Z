@@ -230,12 +230,15 @@ async function onError(err: Error | {} | null | undefined, detail = '') {
 		try {
 			const reportChannel = await client.channels.fetch(`${process.env.ERRCHANNEL}`);
 			if (reportChannel && ['text', 'news'].includes(reportChannel.type)) {
-				let msg = `${detail} ${err}`.trim();
-				if (err instanceof Error) msg += `\nat: ${err.stack}`;
+				const stack = (err instanceof Error) ? err.stack : err;
+				const msg = `${detail} ${stack}`.trim();
 				await (reportChannel as Discord.TextChannel).send(msg);
 				lastErrorReport = Date.now();
 			}
-		} catch (e) {}
+		} catch (e) {
+			// Error handling threw an error, just log we had an issue to console
+			console.error('Error while handling error: ', e);
+		}
 	}
 
 	console.error(err);
