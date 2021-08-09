@@ -6,7 +6,7 @@
  */
 import Discord = require('discord.js');
 import {prefix, toID, database} from './common';
-import {client, verifyData} from './app';
+import {client, verifyData} from './client';
 
 export type DiscordChannel = Discord.TextChannel | Discord.NewsChannel;
 

@@ -3,7 +3,7 @@
  * Basic development related commands, may rename later.
  */
 import Discord = require('discord.js');
-import {shutdown} from '../app';
+import {shutdown} from '../client';
 import {prefix, database} from '../common';
 import {BaseCommand, IAliasList} from '../command_base';
 import * as child_process from 'child_process';

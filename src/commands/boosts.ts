@@ -3,7 +3,7 @@
  * Nitro Boost related commands
  */
 import Discord = require('discord.js');
-import {client, verifyData} from '../app';
+import {client, verifyData} from '../client';
 import {prefix, database} from '../common';
 import {BaseCommand, ReactionPageTurner, DiscordChannel} from '../command_base';
 
