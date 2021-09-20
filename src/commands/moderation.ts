@@ -6,7 +6,7 @@
 import Discord = require('discord.js');
 import {prefix, toID, database} from '../common';
 import {BaseCommand} from '../command_base';
-import {client} from '../app';
+import {client} from '../client';
 
 export class Whois extends BaseCommand {
 	private readonly KEY_PERMISSIONS: {[key: string]: string};

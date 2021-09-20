@@ -5,7 +5,7 @@
  */
 import Discord = require('discord.js');
 import {database} from './common';
-import {client} from './app';
+import {client} from './client';
 
 async function getLogChannel(guild: Discord.Guild): Promise<Discord.TextChannel | void> {
 	const res = await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [guild.id]);

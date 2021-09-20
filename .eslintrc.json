@@ -2,7 +2,7 @@
     "extends": "@pkmn",
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
-        "project": ["./tsconfig.json"]
+        "project": ["./tsconfig.json", "./src/test/tsconfig.json"]
     },
     "rules": {
         "@typescript-eslint/indent": ["error", "tab", {"SwitchCase": 0}],

@@ -3,7 +3,7 @@
  * Basic information related commands.
  */
 import Discord = require('discord.js');
-import {commands} from '../app';
+import {commands} from '../client';
 import {prefix, toID} from '../common';
 import {BaseCommand, DiscordChannel, IAliasList, ReactionPageTurner} from '../command_base';
 
@@ -47,7 +47,7 @@ class HelpPage extends ReactionPageTurner {
 		if (!embed.fields.length) {
 			embed.fields.push({
 				name: 'No Commands Found',
-				value: 'Thats strange, maybe something broke?',
+				value: 'That\'s strange; maybe something broke?',
 			});
 		}
 

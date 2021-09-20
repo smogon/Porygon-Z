@@ -4,7 +4,8 @@
   "description": "A discord bot for the official Smogon discord https://discord.gg/smogon",
   "main": "./dist/app.js",
   "scripts": {
-    "test": "npm run lint",
+    "test": "npm run lint && npm run unit-test",
+    "unit-test": "jest",
     "lint": "eslint . --cache --ext .ts && tsc",
     "fix": "eslint . --cache --ext .ts --fix",
     "full-lint": "eslint . --cache --ext .ts --max-warnings 0",
@@ -31,10 +32,13 @@
   },
   "devDependencies": {
     "@pkmn/eslint-config": "^1.1.0",
+    "@types/jest": "^26.0.24",
     "@typescript-eslint/eslint-plugin": "^4.15.2",
     "@typescript-eslint/parser": "^4.15.2",
     "eslint": "^7.20.0",
     "eslint-plugin-import": "^2.22.1",
+    "jest": "^27.0.6",
+    "ts-jest": "^27.0.4",
     "tslint": "^5.20.1"
   }
 }
