@@ -96,7 +96,7 @@ export class Help extends BaseCommand {
 				timestamp: Date.now(),
 			};
 
-			await this.channel.send({embed: embed});
+			await this.embedReply([embed])
 		} else {
 			// General help
 			const data: {[key: string]: string}[] = [];

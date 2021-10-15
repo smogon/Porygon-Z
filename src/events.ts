@@ -19,7 +19,7 @@ async function fetchAuditLog(
 	type: Discord.GuildAuditLogsAction,
 	guild: Discord.Guild
 ): Promise<Discord.GuildAuditLogsEntry | void> {
-	if (!guild.me?.hasPermission('VIEW_AUDIT_LOG')) return;
+	if (!guild.me?.permissions.has('VIEW_AUDIT_LOG')) return;
 
 	const log = (await guild.fetchAuditLogs({
 		limit: 1,
@@ -56,15 +56,14 @@ client.on('messageDelete', (oldMsg: Discord.Message | Discord.PartialMessage) =>
 		if (!logChannel) return; // Nowhere to log to
 
 		const log = await fetchAuditLog('MESSAGE_DELETE', oldMessage.guild);
-		if (!log || log.executor.id === oldMessage.author.id) return; // Not a mod delete
+		if (!log || !log.executor || log.executor.id === oldMessage.author.id) return; // Not a mod delete or unable to tell
 
 		// Don't report for private channels
 		await oldMessage.guild.roles.fetch();
 		const everyone = oldMessage.guild.roles.everyone; // everyone is always a role
 		if (!everyone) throw new Error('Unable to find the everyone role in the messageDelete event');
 		const permissions = (oldMessage.channel as Discord.TextChannel | Discord.NewsChannel)
-			.permissionOverwrites
-			.get(everyone.id);
+			.permissionOverwrites.cache.get(everyone.id);
 		if (permissions?.deny.has('VIEW_CHANNEL')) {
 		// There are custom permissions for @everyone on this channel, and @everyone cannot view the channel.
 			return;
@@ -98,7 +97,7 @@ client.on('messageDelete', (oldMsg: Discord.Message | Discord.PartialMessage) =>
 			timestamp: Date.now(),
 		};
 
-		await logChannel.send({embed: embed});
+		await logChannel.send({embeds: [embed]});
 	})(oldMsg);
 });
 
@@ -110,7 +109,7 @@ client.on('guildMemberRemove', (u: Discord.GuildMember | Discord.PartialGuildMem
 
 		const log = await fetchAuditLog('MEMBER_KICK', user.guild);
 
-		if (!log || log.executor.id === user.user.id) return; // No log or user left of their own will
+		if (!log || !log.executor || log.executor.id === user.user.id) return; // No log or user left of their own will
 
 		const embed: Discord.MessageEmbedOptions = {
 			color: 0x6194fd,
@@ -131,12 +130,13 @@ client.on('guildMemberRemove', (u: Discord.GuildMember | Discord.PartialGuildMem
 			],
 		};
 
-		await logChannel.send({embed: embed});
+		await logChannel.send({embeds: [embed]});
 	})(u);
 });
 
-async function banChange(guild: Discord.Guild, user: Discord.User | Discord.PartialUser, unbanned = false) {
-	user = (user as Discord.User);
+async function banChange(ban: Discord.GuildBan, unbanned = false) {
+	const user = ban.user;
+	const guild = ban.guild;
 	const logChannel = await getLogChannel(guild);
 	if (!logChannel) return; // Nowhere to log to
 
@@ -152,25 +152,25 @@ async function banChange(guild: Discord.Guild, user: Discord.User | Discord.Part
 		fields: [
 			{
 				name: user.tag,
-				value: log ? `by <@${log.executor.id}>` : 'by Unknown',
+				value: log && log.executor ? `by <@${log.executor.id}>` : 'by Unknown',
 			},
 			{
 				name: 'Reason',
-				value: log ? log.reason || 'N/A' : 'N/A',
+				value: typeof ban.reason === "string" ? ban.reason : 'N/A',
 			},
 		],
 		timestamp: Date.now(),
 	};
 
-	await logChannel.send({embed: embed});
+	await logChannel.send({embeds: [embed]});
 }
 
-client.on('guildBanAdd', (guild: Discord.Guild, user: Discord.User | Discord.PartialUser) => {
-	void banChange(guild, user);
+client.on('guildBanAdd', (ban: Discord.GuildBan) => {
+	void banChange(ban);
 });
 
-client.on('guildBanRemove', (guild: Discord.Guild, user: Discord.User | Discord.PartialUser) => {
-	void banChange(guild, user, true);
+client.on('guildBanRemove', (ban: Discord.GuildBan) => {
+	void banChange(ban, true);
 });
 
 client.on('guildMemberAdd', (m: Discord.GuildMember | Discord.PartialGuildMember) => {
@@ -189,7 +189,7 @@ client.on('guildMemberAdd', (m: Discord.GuildMember | Discord.PartialGuildMember
 		if (!sticky.length) return; // User rejoined and had 0 sticky roles.
 
 		// Re-assign sticky roles
-		if (!bot.hasPermission('MANAGE_ROLES')) {
+		if (!bot.permissions.has('MANAGE_ROLES')) {
 		// Bot can't assign roles due to lack of permissions
 			const channel = await getLogChannel(guild);
 			const msg = '[WARN] Bot tried to assign sticky (persistant) roles to a user joining the server, but lacks the MANAGE_ROLES permission.';

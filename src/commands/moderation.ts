@@ -29,8 +29,7 @@ export class Whois extends BaseCommand {
 	private async getJoinPosition(user: Discord.GuildMember): Promise<string> {
 		const guild = user.guild;
 		await guild.members.fetch();
-		const orderedList = guild.members.cache
-			.array()
+		const orderedList = [...guild.members.cache.values()]
 			.sort((a, b) => (a.joinedTimestamp || Date.now()) - (b.joinedTimestamp || Date.now()));
 
 		return `${orderedList.indexOf(user) + 1} of ${orderedList.length}`;
@@ -82,7 +81,7 @@ export class Whois extends BaseCommand {
 			},
 		};
 
-		await this.channel.send({embed: embed});
+		await this.embedReply([embed]);
 	}
 
 	static help(): string {
@@ -124,7 +123,7 @@ export class WhoHas extends BaseCommand {
 			},
 		};
 
-		void this.channel.send({embed: embed});
+		void this.embedReply([embed]);
 	}
 
 	static help(): string {
@@ -152,7 +151,7 @@ abstract class StickyCommand extends BaseCommand {
 		if (await this.can('EVAL', user.user)) return true;
 
 		// Server owner override
-		if (this.guild.ownerID === user.user.id) return true;
+		if (this.guild.ownerId === user.user.id) return true;
 
 		await this.guild.roles.fetch();
 		const highestRole = [...user.roles.cache.values()].sort((a, b) => b.comparePositionTo(a))[0];

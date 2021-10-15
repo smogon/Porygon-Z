@@ -34,7 +34,22 @@ interface IDatabaseInsert {
 	channel?: DiscordChannel;
 }
 
-export const client = new Discord.Client();
+export const client = new Discord.Client({
+	intents: [
+		// For reporting ban info
+		Discord.Intents.FLAGS.GUILD_BANS,
+		// For checking if a user is set as offline
+		Discord.Intents.FLAGS.GUILD_PRESENCES,
+		// For reading messages
+		Discord.Intents.FLAGS.GUILD_MESSAGES,
+		Discord.Intents.FLAGS.DIRECT_MESSAGES,
+		// For checking reactions on messages
+		Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
+		Discord.Intents.FLAGS.DIRECT_MESSAGE_REACTIONS,
+		// TODO determine if this is needed
+		//Discord.Intents.FLAGS.GUILDS,
+	],
+});
 
 // Necessary to match process.on('uncaughtException')
 // eslint-disable-next-line @typescript-eslint/ban-types
@@ -195,7 +210,7 @@ client.on('ready', () => void (async () => {
 
 // Fires when we get a new message from discord. We ignore messages that aren't commands or are from a bot.
 client.on('message', (m) => void (async msg => {
-	if (msg.webhookID) return;
+	if (msg.webhookId) return;
 	await verifyData(msg);
 	if (msg.author.bot) return;
 	if (!msg.content.startsWith(prefix)) {
@@ -209,7 +224,7 @@ client.on('message', (m) => void (async msg => {
 					await monitor.execute();
 				}
 			} catch (e) {
-				await onError(e, 'A chat monitor crashed: ');
+				await onError(<Error>e, 'A chat monitor crashed: ');
 			}
 		}
 		return;
@@ -230,7 +245,7 @@ client.on('message', (m) => void (async msg => {
 	try {
 		await cmd.execute();
 	} catch (e) {
-		await onError(e, 'A chat command crashed: ');
+		await onError(<Error>e, 'A chat command crashed: ');
 		await msg.channel.send(
 			'\u274C - An error occured while trying to run your command. The error has been logged, and we will fix it soon.'
 		);

@@ -45,7 +45,7 @@ export class ActivityMonitor extends BaseMonitor {
 		await this.guild.roles.fetch();
 		const everyone = this.guild.roles.everyone; // everyone is always a role
 		if (!everyone) throw new Error('Unable to find the everyone role when logging linecounts.');
-		const permissions = this.channel.permissionOverwrites.get(everyone.id);
+		const permissions = this.channel.permissionOverwrites.resolve(everyone.id);
 		if (permissions?.deny.has('VIEW_CHANNEL')) {
 			// There are custom permissions for @everyone on this channel, and @everyone cannot view the channel.
 			return false;

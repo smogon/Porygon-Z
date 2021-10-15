@@ -9,7 +9,7 @@
 import OriginalDiscord = require('discord.js');
 
 export class Client extends OriginalDiscord.Client {
-	constructor(options?: OriginalDiscord.ClientOptions) {
+	constructor(options: OriginalDiscord.ClientOptions) {
 		super(options);
 		this.token = 'not a real token';
 	}

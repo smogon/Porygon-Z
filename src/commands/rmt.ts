@@ -80,7 +80,7 @@ class RaterList extends ReactionPageTurner {
 
 	private buildFormat(): Discord.EmbedFieldData[] {
 		return [{
-			name: this.format,
+			name: this.format || "List of Team Raters",
 			value: this.data.map(v => `${v.name}#${v.discriminator}`).join(', ') || 'No Team Raters Found.',
 		}];
 	}

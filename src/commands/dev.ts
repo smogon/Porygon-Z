@@ -42,7 +42,7 @@ export class Eval extends BaseCommand {
 			result = await eval(this.target);
 			if (result === '') result = '""';
 		} catch (e) {
-			result = `An error occured: ${e.toString()}`;
+			result = `An error occured: ${(e as Error).toString()}`;
 		}
 		await this.sendCode(result);
 	}
@@ -60,7 +60,7 @@ export class Query extends BaseCommand {
 			const res = await database.queryWithResults(this.target, undefined);
 			await this.sendCode(this.formatResponse(res));
 		} catch (err) {
-			await this.sendCode(`An error occured: ${err.toString()}`);
+			await this.sendCode(`An error occured: ${(err as Error).toString()}`);
 		}
 	}
 
