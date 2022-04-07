@@ -59,6 +59,7 @@ export class TeamRatingMonitor extends BaseMonitor {
 	}
 
 	async shouldExecute() {
+		if (!this.guild) return false;
 		let res = await database.queryWithResults('SELECT channelid FROM teamraters WHERE channelid = $1', [this.channel.id]);
 		if (!res.length) return false; // This channel isn't setup for team rating.
 
@@ -74,9 +75,9 @@ export class TeamRatingMonitor extends BaseMonitor {
 		if (!res.length) {
 			return false; // No results
 		} else {
-			res = res.filter(r => {
-				const user = this.getUser(r.userid);
-				if (!user || user.presence.status === 'offline') return false;
+			res = res.filter(async (r) => {
+				const user = await this.guild?.members.fetch(r.userid);
+				if (!user || !user.presence || user.presence.status === 'offline') return false;
 				return true;
 			});
 

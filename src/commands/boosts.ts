@@ -11,8 +11,9 @@ async function updateBoosters() {
 	for (const [guildId, guild] of client.guilds.cache) {
 		const res = await database.queryWithResults('SELECT userid FROM userlist WHERE serverid = $1 AND boosting IS NOT NULL', [guildId]);
 		const boosting = res.map(r => r.userid);
-		const logchannelResult = await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [guildId]);
-		const logChannel = client.channels.cache.get(logchannelResult[0].logchannel) as DiscordChannel;
+		const logchannelResult = (await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [guildId]))[0];
+		const logChannel = logchannelResult
+			? client.channels.cache.get(logchannelResult.logchannel) as DiscordChannel : undefined;
 		await guild.members.fetch();
 
 		for (const [id, gm] of guild.members.cache) {

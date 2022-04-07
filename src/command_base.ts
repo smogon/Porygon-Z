@@ -108,7 +108,7 @@ export abstract class BaseCommand {
 
 		// All custom permissions need to resolve above.
 		if (!permissions.includes(permission)) throw new Error(`Unhandled custom permission: ${permission}.`);
-		return member.hasPermission((permission as Discord.PermissionResolvable), {checkAdmin: true, checkOwner: true});
+		return member.permissions.has((permission as Discord.PermissionResolvable));
 	}
 
 	/**
@@ -143,7 +143,7 @@ export abstract class BaseCommand {
 			if (channel.guild && channel.guild.id !== this.guild.id) return;
 		}
 		if (authorVisibilitity) {
-			const guildMember = channel.guild.member(this.author.id);
+			const guildMember = channel.guild.members.cache.get(this.author.id);
 			if (!guildMember) return; // User not in guild and cannot see channel
 			const permissions = channel.permissionsFor(guildMember);
 			if (!permissions) {
@@ -271,6 +271,12 @@ export abstract class BaseCommand {
 		return channel.send('\u274C ' + msg);
 	}
 
+	protected embedReply(embeds: Discord.MessageEmbedOptions[], channel?: DiscordChannel):
+	Promise<Discord.Message> | void {
+		if (!channel) channel = this.channel;
+		return channel.send({embeds: embeds});
+	}
+
 	/**
 	 * Send a reply in a code block
 	 * @param msg The message to reply with
@@ -288,7 +294,7 @@ export abstract class BaseCommand {
 	 * If one is not setup, the message is dropped.
 	 * @param msg The message to send
 	 */
-	protected async sendLog(msg: string | Discord.MessageEmbed): Promise<Discord.Message | void> {
+	protected async sendLog(msg: string | Discord.MessageOptions): Promise<Discord.Message | void> {
 		if (!toID(msg) || !this.guild) return;
 		const res = await database.queryWithResults('SELECT logchannel FROM servers WHERE serverid = $1', [this.guild.id]);
 		const channel = this.getChannel(res[0].logchannel, false, false);
@@ -353,15 +359,16 @@ export abstract class ReactionPageTurner {
 	async initialize(messageOrChannel: Discord.Message | DiscordChannel): Promise<void> {
 		if (this.message) throw new Error('Reaction Page Turner already initialized.');
 		if (!(messageOrChannel instanceof Discord.Message)) {
-			this.message = await messageOrChannel.send(this.buildPage());
+			this.message = await messageOrChannel.send({embeds: [this.buildPage()]});
 		} else {
 			this.message = messageOrChannel;
 		}
 
-		const filter: Discord.CollectorFilter = (reaction, user) => (
-			this.targetReactions.includes(reaction.emoji.name) && this.user.id === user.id
+		this.options.filter = (reaction, user) => (
+			this.targetReactions.includes(reaction.emoji.name || '') && this.user.id === user.id
 		);
-		this.collector = new Discord.ReactionCollector(this.message, filter, this.options);
+
+		this.collector = new Discord.ReactionCollector(this.message, this.options);
 
 		this.collector.on('collect', (reaction) => void this.collect(reaction));
 		this.collector.on('end', this.end.bind(this));
@@ -413,7 +420,7 @@ export abstract class ReactionPageTurner {
 			throw new Error(`Unexpected reaction on page turner: ${reaction.emoji.name}`);
 		}
 
-		await this.message.edit(this.buildPage());
+		await this.message.edit({embeds: [this.buildPage()]});
 	}
 
 	protected end(): void {
