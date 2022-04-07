@@ -4,7 +4,7 @@
   "description": "A discord bot for the official Smogon discord https://discord.gg/smogon",
   "main": "./dist/app.js",
   "scripts": {
-    "test": "npm run lint && npm run unit-test",
+    "test": "npm run lint",
     "unit-test": "jest",
     "lint": "eslint . --cache --ext .ts && tsc",
     "fix": "eslint . --cache --ext .ts --fix",
