@@ -47,13 +47,13 @@ export const client = new Discord.Client({
 		Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
 		Discord.Intents.FLAGS.DIRECT_MESSAGE_REACTIONS,
 		// TODO determine if this is needed
-		//Discord.Intents.FLAGS.GUILDS,
+		// Discord.Intents.FLAGS.GUILDS,
 	],
 });
 
 // Necessary to match process.on('uncaughtException')
 // eslint-disable-next-line @typescript-eslint/ban-types
-export async function onError(err: Error | {} | null | undefined, detail = '') {
+export async function onError(err: any, detail = '') {
 	if (!err) return console.error('Error with no details thrown.');
 	// Don't flood the error report channel, only report 1 error per minute.
 	if (Date.now() > lastErrorReport + (1000 * 60)) {
@@ -224,7 +224,7 @@ client.on('message', (m) => void (async msg => {
 					await monitor.execute();
 				}
 			} catch (e) {
-				await onError(<Error>e, 'A chat monitor crashed: ');
+				await onError(e as Error, 'A chat monitor crashed: ');
 			}
 		}
 		return;
@@ -234,18 +234,18 @@ client.on('message', (m) => void (async msg => {
 	if (lockdown) return msg.reply('The bot is restarting soon, please try again in a minute.');
 
 	const cmdID = toID(msg.content.slice(prefix.length).split(' ')[0]);
-	let command = commands.get(cmdID);
-	if (typeof command === 'string') command = commands.get(command);
+	let Command = commands.get(cmdID);
+	if (typeof Command === 'string') Command = commands.get(Command);
 	// Throw if it's another alias
-	if (typeof command === 'string') throw new Error(`Alias "${cmdID}" did not point to command.`);
-	if (!command) return;
+	if (typeof Command === 'string') throw new Error(`Alias "${cmdID}" did not point to command.`);
+	if (!Command) return;
 
 	// 100% not an alias, so it must be a command class.
-	const cmd = new (command as Constructable<BaseCommand>)(msg);
+	const cmd = new Command(msg);
 	try {
 		await cmd.execute();
 	} catch (e) {
-		await onError(<Error>e, 'A chat command crashed: ');
+		await onError(e as Error, 'A chat command crashed: ');
 		await msg.channel.send(
 			'\u274C - An error occured while trying to run your command. The error has been logged, and we will fix it soon.'
 		);

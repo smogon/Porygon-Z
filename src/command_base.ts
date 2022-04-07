@@ -271,7 +271,8 @@ export abstract class BaseCommand {
 		return channel.send('\u274C ' + msg);
 	}
 
-	protected embedReply(embeds: Discord.MessageEmbedOptions[], channel?: DiscordChannel): Promise<Discord.Message> | void {
+	protected embedReply(embeds: Discord.MessageEmbedOptions[], channel?: DiscordChannel):
+	Promise<Discord.Message> | void {
 		if (!channel) channel = this.channel;
 		return channel.send({embeds: embeds});
 	}
@@ -363,10 +364,11 @@ export abstract class ReactionPageTurner {
 			this.message = messageOrChannel;
 		}
 
-		const filter: Discord.CollectorFilter = (reaction, user) => (
-			this.targetReactions.includes(reaction.emoji.name) && this.user.id === user.id
+		this.options.filter = (reaction, user) => (
+			this.targetReactions.includes(reaction.emoji.name || '') && this.user.id === user.id
 		);
-		this.collector = new Discord.ReactionCollector(this.message, filter, this.options);
+
+		this.collector = new Discord.ReactionCollector(this.message, this.options);
 
 		this.collector.on('collect', (reaction) => void this.collect(reaction));
 		this.collector.on('end', this.end.bind(this));
@@ -418,7 +420,7 @@ export abstract class ReactionPageTurner {
 			throw new Error(`Unexpected reaction on page turner: ${reaction.emoji.name}`);
 		}
 
-		await this.message.edit(this.buildPage());
+		await this.message.edit({embeds: [this.buildPage()]});
 	}
 
 	protected end(): void {

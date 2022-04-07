@@ -48,7 +48,7 @@ export class ExternalPostgresDatabase implements Database {
 	async query(statement: string, args?: any[]) {
 		try {
 			await this.pool.query(statement, args);
-		} catch (e) {
+		} catch (e: any) {
 			throw new Error(`Error while quering database: ${e.message}\n` +
 				`Query: ${statement}\nArgs: ${args}\n`);
 		}
@@ -58,7 +58,7 @@ export class ExternalPostgresDatabase implements Database {
 		try {
 			const result = await this.pool.query(statement, args);
 			return result.rows;
-		} catch (e) {
+		} catch (e: any) {
 			throw new Error(`Error while quering database: ${e.message}\n` +
 				`Query: ${statement}\nArgs: ${args}\n`);
 		}

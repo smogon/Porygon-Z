@@ -18,7 +18,7 @@ async function getLogChannel(guild: Discord.Guild): Promise<Discord.TextChannel 
 async function fetchAuditLog(
 	type: Discord.GuildAuditLogsAction,
 	guild: Discord.Guild
-): Promise<Discord.GuildAuditLogsEntry | void> {
+): Promise<Discord.GuildAuditLogsEntry<Discord.GuildAuditLogsAction> | void> {
 	if (!guild.me?.permissions.has('VIEW_AUDIT_LOG')) return;
 
 	const log = (await guild.fetchAuditLogs({
@@ -152,11 +152,11 @@ async function banChange(ban: Discord.GuildBan, unbanned = false) {
 		fields: [
 			{
 				name: user.tag,
-				value: log && log.executor ? `by <@${log.executor.id}>` : 'by Unknown',
+				value: log?.executor ? `by <@${log.executor.id}>` : 'by Unknown',
 			},
 			{
 				name: 'Reason',
-				value: typeof ban.reason === "string" ? ban.reason : 'N/A',
+				value: typeof ban.reason === 'string' ? ban.reason : 'N/A',
 			},
 		],
 		timestamp: Date.now(),
